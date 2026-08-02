@@ -32,6 +32,7 @@ yarn-error.log*
 
 # env files (can opt-in for committing if needed)
 .env*
+!.env.example
 
 # vercel
 .vercel
@@ -39,3 +40,14 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# local tooling / AI agent artifacts
+/.omo/
+/.opencode/
+/.codegraph/
+AGENTS.md
+CLAUDE.md
+
+# chat/conversation exports (may contain secrets)
+Plant Control Monitoring Dashboard Skeleton.md
+*.session.json

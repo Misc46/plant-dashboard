@@ -1,0 +1,21 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // User profile document: authenticated users can read their own document
+    // Only server-side Admin SDK can write (e.g. signup endpoint)
+    match /users/{uid} {
+      allow read: if request.auth != null && request.auth.uid == uid;
+      allow write: if false;
+    }
+
+    // Plant configuration document: any authenticated user can read
+    // Only users with ADMIN role in their users/{uid} document can write
+    match /plants/{plantId} {
+      allow read: if request.auth != null;
+      allow create, update, delete: if request.auth != null &&
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'ADMIN';
+    }
+    
+  }
+}

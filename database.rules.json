@@ -1,0 +1,10 @@
+{
+  "rules": {
+    "telemetry": {
+      "$plantId": {
+        ".read": "auth != null",
+        ".write": false
+      }
+    }
+  }
+}
