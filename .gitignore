@@ -50,4 +50,6 @@ CLAUDE.md
 
 # chat/conversation exports (may contain secrets)
 Plant Control Monitoring Dashboard Skeleton.md
+theory.md
+future-implementations.md
 *.session.json

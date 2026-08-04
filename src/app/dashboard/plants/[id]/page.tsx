@@ -26,7 +26,7 @@ export default function PlantDetailPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = use(params);
-  const { profile } = useAuth();
+  const { profile, user } = useAuth();
 
   const [plant, setPlant] = useState<PlantData | null>(null);
   const [telemetry, setTelemetry] = useState<TelemetryReading[]>([]);
@@ -111,14 +111,17 @@ export default function PlantDetailPage({
   };
 
   const handleReset = async () => {
-    if (!isAdmin) return;
+    if (!isAdmin || !user) return;
     try {
-      await updateDoc(doc(db, "plants", id), {
-        status: "STOPPED",
-        stepStartAt: null,
-        stepStartSetpoint: null,
-        updatedAt: serverTimestamp(),
-      });
+      const idToken = await user.getIdToken();
+      await axios.post(
+        `/api/plants/${id}/reset`,
+        {},
+        {
+          headers: { Authorization: `Bearer ${idToken}` },
+        }
+      );
+      setTelemetry([]);
     } catch {
       alert("Failed to reset plant state.");
     }
