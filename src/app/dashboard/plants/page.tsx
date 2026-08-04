@@ -6,6 +6,15 @@ import { db } from "@/lib/firebase/client";
 import { PlantData } from "@/lib/simulator";
 import Link from "next/link";
 import { useAuth } from "@/lib/auth/AuthProvider";
+import {
+  Badge,
+  Button,
+  Card,
+  EmptyState,
+  PageHeader,
+  PageLoader,
+  StatusBadge,
+} from "@/components/ui";
 
 export default function PlantsListPage() {
   const [plants, setPlants] = useState<PlantData[]>([]);
@@ -33,75 +42,81 @@ export default function PlantsListPage() {
     return () => unsubscribe();
   }, []);
 
+  const addPlantAction =
+    profile?.role === "ADMIN" ? (
+      <Link href="/dashboard/plants/new">
+        <Button variant="primary">+ Add Plant</Button>
+      </Link>
+    ) : null;
+
   return (
     <div className="space-y-6">
-      <div className="flex justify-between items-center">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-800">Control Plants</h1>
-          <p className="text-sm text-gray-500">Live updated via Firestore `onSnapshot`</p>
-        </div>
-        {profile?.role === "ADMIN" && (
-          <Link
-            href="/dashboard/plants/new"
-            className="py-2 px-4 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded transition"
-          >
-            + Add Plant
-          </Link>
-        )}
-      </div>
+      <PageHeader
+        title="Control Plants"
+        subtitle="Live-updating via Firestore stream"
+        actions={addPlantAction}
+      />
 
       {loading ? (
-        <div className="text-gray-500 py-6">Connecting to Firestore live stream...</div>
+        <PageLoader text="Connecting to Firestore live stream..." />
       ) : plants.length === 0 ? (
-        <div className="bg-white p-8 rounded border text-center text-gray-500">
-          No plants created yet.
-        </div>
+        <EmptyState
+          title="No plants created yet"
+          description="Create your first control loop to start simulating telemetry."
+          action={
+            profile?.role === "ADMIN" ? (
+              <Link href="/dashboard/plants/new">
+                <Button variant="primary">+ Add Plant</Button>
+              </Link>
+            ) : undefined
+          }
+        />
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 gap-5 md:grid-cols-2 xl:grid-cols-3">
           {plants.map((plant) => (
-            <div
+            <Card
               key={plant.id}
-              className="bg-white rounded border border-gray-200 p-5 shadow-sm flex flex-col justify-between"
+              className="flex flex-col justify-between transition hover:-translate-y-0.5 hover:shadow-md"
             >
               <div>
-                <div className="flex justify-between items-start mb-2">
-                  <h3 className="font-bold text-gray-800 text-lg">{plant.name}</h3>
-                  <span
-                    className={`px-2 py-0.5 text-xs font-bold rounded ${
-                      plant.status === "RUNNING"
-                        ? "bg-green-100 text-green-800"
-                        : plant.status === "FAULT"
-                        ? "bg-red-100 text-red-800"
-                        : "bg-gray-100 text-gray-800"
-                    }`}
-                  >
-                    {plant.status}
-                  </span>
+                <div className="mb-2 flex items-start justify-between gap-2">
+                  <h3 className="truncate font-semibold text-slate-900">
+                    {plant.name}
+                  </h3>
+                  <StatusBadge status={plant.status} />
                 </div>
 
-                <p className="text-xs text-gray-500 mb-4">
-                  Type: <span className="font-semibold text-gray-700">{plant.type}</span> | Controller:{" "}
-                  <span className="font-semibold text-gray-700">{plant.controllerType}</span>
+                <p className="mb-4 flex items-center gap-1.5 text-xs text-slate-500">
+                  <Badge tone="blue">{plant.type}</Badge>
+                  <span aria-hidden="true">·</span>
+                  <span className="truncate">{plant.controllerType}</span>
                 </p>
 
-                <div className="bg-gray-50 p-3 rounded text-xs space-y-1 font-mono mb-4">
-                  <p>Setpoint: {plant.setpoint}</p>
+                <div className="mb-4 space-y-1 rounded-lg bg-slate-50 p-3 font-mono text-xs tabular-nums">
                   <p>
-                    Kp: {plant.kp} | Ki: {plant.ki} | Kd: {plant.kd}
+                    <span className="text-slate-400">SP</span>{" "}
+                    <span className="font-medium text-slate-700">
+                      {plant.setpoint}
+                    </span>
                   </p>
-                  <p>
-                    Output Limits: [{plant.outputMin}, {plant.outputMax}]
+                  <p className="text-slate-700">
+                    Kp {plant.kp} · Ki {plant.ki} · Kd {plant.kd}
+                  </p>
+                  <p className="text-slate-700">
+                    Output {plant.outputMin} – {plant.outputMax}
                   </p>
                 </div>
               </div>
 
               <Link
                 href={`/dashboard/plants/${plant.id}`}
-                className="w-full text-center py-2 bg-gray-100 hover:bg-gray-200 text-gray-800 text-sm font-medium rounded transition"
+                className="block"
               >
-                Inspect Telemetry & Control &rarr;
+                <Button variant="secondary" size="md" className="w-full">
+                  Inspect Telemetry &rarr;
+                </Button>
               </Link>
-            </div>
+            </Card>
           ))}
         </div>
       )}

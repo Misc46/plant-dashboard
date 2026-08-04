@@ -78,7 +78,33 @@ export default function TelemetryChart({ data }: UPlotChartProps) {
   }, [data]);
 
   return (
-    <div className="w-full bg-white p-4 rounded border border-gray-200 shadow-sm overflow-hidden">
+    <div className="w-full rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+      <div className="mb-3 flex items-center justify-between">
+        <h2 className="text-sm font-semibold text-slate-900">Live Telemetry</h2>
+        <div className="flex items-center gap-3">
+          <span className="flex items-center gap-1.5 text-xs font-mono text-blue-600">
+            <span
+              className="inline-block size-2 rounded-full"
+              style={{ backgroundColor: "rgb(37, 99, 235)" }}
+            />
+            PV
+          </span>
+          <span className="flex items-center gap-1.5 text-xs font-mono text-red-600">
+            <span
+              className="inline-block size-2 rounded-full"
+              style={{ backgroundColor: "rgb(220, 38, 38)" }}
+            />
+            SP
+          </span>
+          <span className="flex items-center gap-1.5 text-xs font-mono text-purple-600">
+            <span
+              className="inline-block size-2 rounded-full"
+              style={{ backgroundColor: "rgb(147, 51, 234)" }}
+            />
+            Output
+          </span>
+        </div>
+      </div>
       <div ref={containerRef} className="w-full"></div>
     </div>
   );

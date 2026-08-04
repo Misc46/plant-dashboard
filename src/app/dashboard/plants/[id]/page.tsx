@@ -7,6 +7,16 @@ import { db, rtdb } from "@/lib/firebase/client";
 import { PlantData, TelemetryReading } from "@/lib/simulator";
 import { useAuth } from "@/lib/auth/AuthProvider";
 import TelemetryChart from "@/components/TelemetryChart";
+import {
+  Badge,
+  Button,
+  Card,
+  Field,
+  Input,
+  PageLoader,
+  StatCard,
+  StatusBadge,
+} from "@/components/ui";
 import axios from "axios";
 import { PerformanceMetrics } from "@/lib/metrics/performance";
 
@@ -140,192 +150,171 @@ export default function PlantDetailPage({
   };
 
   if (!plant) {
-    return <div className="text-gray-500">Loading plant details...</div>;
+    return <PageLoader text="Loading plant details..." />;
   }
 
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center bg-white p-5 rounded border border-gray-200 shadow-sm gap-4">
+      <Card className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <div>
-          <div className="flex items-center space-x-3">
-            <h1 className="text-2xl font-bold text-gray-800">{plant.name}</h1>
-            <span
-              className={`px-2 py-0.5 text-xs font-bold rounded ${
-                plant.status === "RUNNING"
-                  ? "bg-green-100 text-green-800"
-                  : plant.status === "FAULT"
-                  ? "bg-red-100 text-red-800"
-                  : "bg-gray-100 text-gray-800"
-              }`}
-            >
-              {plant.status}
-            </span>
+          <div className="flex items-center gap-3">
+            <h1 className="text-2xl font-bold text-slate-900">{plant.name}</h1>
+            <StatusBadge status={plant.status} />
           </div>
-          <p className="text-xs text-gray-500 mt-1">
+          <p className="text-xs text-slate-500 font-mono mt-1">
             ID: {plant.id} | Type: {plant.type} | Controller: {plant.controllerType}
           </p>
         </div>
 
         {/* Command Buttons (ADMIN only) */}
         {isAdmin && (
-          <div className="flex items-center space-x-2">
+          <div className="flex items-center gap-2">
             {plant.status !== "RUNNING" ? (
-              <button
+              <Button
+                variant="success"
                 onClick={() => handleStatusChange("RUNNING")}
-                className="py-2 px-4 bg-green-600 hover:bg-green-700 text-white font-semibold rounded text-sm transition"
               >
                 Start Simulation
-              </button>
+              </Button>
             ) : (
-              <button
+              <Button
+                variant="warning"
                 onClick={() => handleStatusChange("STOPPED")}
-                className="py-2 px-4 bg-yellow-600 hover:bg-yellow-700 text-white font-semibold rounded text-sm transition"
               >
                 Stop
-              </button>
+              </Button>
             )}
-            <button
-              onClick={handleReset}
-              className="py-2 px-4 bg-red-600 hover:bg-red-700 text-white font-semibold rounded text-sm transition"
-            >
+            <Button variant="danger" onClick={handleReset}>
               Reset
-            </button>
+            </Button>
           </div>
         )}
-      </div>
+      </Card>
 
       {/* Real-time Telemetry Chart */}
       <TelemetryChart data={telemetry} />
 
       {/* Grid: Performance Panel + PID Config Form */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Performance Metrics Panel */}
-        <div className="bg-white p-5 rounded border border-gray-200 shadow-sm space-y-4">
-          <div className="flex justify-between items-center border-b pb-2">
-            <h3 className="font-bold text-gray-800">Control Performance Metrics</h3>
-            <button
+        <Card className="space-y-4">
+          <div className="flex justify-between items-center border-b border-slate-100 pb-2">
+            <h3 className="font-semibold text-slate-900">Control Performance Metrics</h3>
+            <Button
+              variant="ghost"
+              size="sm"
+              loading={metricsLoading}
               onClick={() => {
                 setMetricsLoading(true);
                 fetchMetrics();
               }}
-              disabled={metricsLoading}
-              className="text-xs bg-gray-100 hover:bg-gray-200 px-2 py-1 rounded text-gray-700"
             >
               {metricsLoading ? "Calculating..." : "Refresh Metrics"}
-            </button>
+            </Button>
           </div>
 
           {metrics?.message ? (
-            <p className="text-xs text-gray-500 py-2">{metrics.message}</p>
+            <p className="text-sm text-slate-500">{metrics.message}</p>
           ) : (
-            <div className="grid grid-cols-3 gap-4 text-center">
-              <div className="bg-blue-50 p-3 rounded border border-blue-100">
-                <p className="text-xs text-blue-600 font-medium">Rise Time</p>
-                <p className="text-lg font-bold text-blue-900 mt-1">
-                  {metrics?.riseTimeMs !== null && metrics?.riseTimeMs !== undefined
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+              <StatCard
+                label="Rise Time"
+                tone="blue"
+                value={
+                  metrics?.riseTimeMs !== null && metrics?.riseTimeMs !== undefined
                     ? `${metrics.riseTimeMs} ms`
-                    : "N/A"}
-                </p>
-              </div>
-
-              <div className="bg-purple-50 p-3 rounded border border-purple-100">
-                <p className="text-xs text-purple-600 font-medium">Overshoot %</p>
-                <p className="text-lg font-bold text-purple-900 mt-1">
-                  {metrics?.overshootPercent !== null && metrics?.overshootPercent !== undefined
+                    : "N/A"
+                }
+              />
+              <StatCard
+                label="Overshoot %"
+                tone="purple"
+                value={
+                  metrics?.overshootPercent !== null && metrics?.overshootPercent !== undefined
                     ? `${metrics.overshootPercent}%`
-                    : "N/A"}
-                </p>
-              </div>
-
-              <div className="bg-green-50 p-3 rounded border border-green-100">
-                <p className="text-xs text-green-600 font-medium">Settling Time</p>
-                <p className="text-lg font-bold text-green-900 mt-1">
-                  {metrics?.settlingTimeMs !== null && metrics?.settlingTimeMs !== undefined
+                    : "N/A"
+                }
+              />
+              <StatCard
+                label="Settling Time"
+                tone="green"
+                value={
+                  metrics?.settlingTimeMs !== null && metrics?.settlingTimeMs !== undefined
                     ? `${metrics.settlingTimeMs} ms`
-                    : "N/A"}
-                </p>
-              </div>
+                    : "N/A"
+                }
+              />
             </div>
           )}
-        </div>
+        </Card>
 
         {/* Controller Config Form */}
-        <div className="bg-white p-5 rounded border border-gray-200 shadow-sm space-y-4">
-          <h3 className="font-bold text-gray-800 border-b pb-2">
-            PID Parameter Configuration {isAdmin ? "(Admin Editable)" : "(View Only)"}
-          </h3>
+        <Card className="space-y-4">
+          <div className="flex items-center justify-between border-b border-slate-100 pb-2">
+            <h3 className="font-semibold text-slate-900">PID Parameter Configuration</h3>
+            {isAdmin ? (
+              <Badge tone="green">Admin Editable</Badge>
+            ) : (
+              <span className="text-xs text-slate-400">View Only</span>
+            )}
+          </div>
 
           <form onSubmit={handleSaveConfig} className="space-y-3">
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <label className="block text-xs font-semibold text-gray-600 mb-1">
-                  Setpoint
-                </label>
-                <input
+            <div className="grid grid-cols-2 gap-4">
+              <Field label="Setpoint">
+                <Input
                   type="number"
                   step="any"
                   disabled={!isAdmin}
                   value={setpoint}
                   onChange={(e) => setSetpoint(Number(e.target.value))}
-                  className="w-full px-3 py-1.5 border rounded text-sm disabled:bg-gray-100"
                 />
-              </div>
+              </Field>
 
-              <div>
-                <label className="block text-xs font-semibold text-gray-600 mb-1">
-                  Kp (Proportional)
-                </label>
-                <input
+              <Field label="Kp (Proportional)">
+                <Input
                   type="number"
                   step="any"
                   disabled={!isAdmin}
                   value={kp}
                   onChange={(e) => setKp(Number(e.target.value))}
-                  className="w-full px-3 py-1.5 border rounded text-sm disabled:bg-gray-100"
                 />
-              </div>
+              </Field>
 
-              <div>
-                <label className="block text-xs font-semibold text-gray-600 mb-1">
-                  Ki (Integral)
-                </label>
-                <input
+              <Field label="Ki (Integral)">
+                <Input
                   type="number"
                   step="any"
                   disabled={!isAdmin}
                   value={ki}
                   onChange={(e) => setKi(Number(e.target.value))}
-                  className="w-full px-3 py-1.5 border rounded text-sm disabled:bg-gray-100"
                 />
-              </div>
+              </Field>
 
-              <div>
-                <label className="block text-xs font-semibold text-gray-600 mb-1">
-                  Kd (Derivative)
-                </label>
-                <input
+              <Field label="Kd (Derivative)">
+                <Input
                   type="number"
                   step="any"
                   disabled={!isAdmin}
                   value={kd}
                   onChange={(e) => setKd(Number(e.target.value))}
-                  className="w-full px-3 py-1.5 border rounded text-sm disabled:bg-gray-100"
                 />
-              </div>
+              </Field>
             </div>
 
             {isAdmin && (
-              <button
+              <Button
                 type="submit"
-                disabled={savingConfig}
-                className="w-full py-2 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded text-sm transition disabled:opacity-50 mt-2"
+                variant="primary"
+                className="w-full mt-2"
+                loading={savingConfig}
               >
                 {savingConfig ? "Saving Changes..." : "Update Plant Parameters"}
-              </button>
+              </Button>
             )}
           </form>
-        </div>
+        </Card>
       </div>
     </div>
   );

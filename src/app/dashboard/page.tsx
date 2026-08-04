@@ -3,6 +3,14 @@
 import { useCallback, useEffect, useState } from "react";
 import axios from "axios";
 import Link from "next/link";
+import {
+  Alert,
+  Button,
+  Card,
+  PageHeader,
+  PageLoader,
+  StatCard,
+} from "@/components/ui";
 
 interface DashboardSummary {
   activePlants: number;
@@ -44,77 +52,82 @@ export default function DashboardOverviewPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex justify-between items-center">
-        <h1 className="text-2xl font-bold text-gray-800">System Overview</h1>
-        <button
-          onClick={fetchSummary}
-          className="text-xs bg-white border border-gray-300 px-3 py-1 rounded shadow-sm hover:bg-gray-50"
-        >
-          Refresh Now
-        </button>
-      </div>
+      <PageHeader
+        title="System Overview"
+        subtitle="Live aggregate telemetry across all control plants"
+        actions={
+          <Button variant="secondary" size="sm" onClick={fetchSummary}>
+            Refresh Now
+          </Button>
+        }
+      />
 
-      {error && (
-        <div className="p-4 bg-red-100 border border-red-300 text-red-700 rounded">
-          {error}
-        </div>
-      )}
+      {error && <Alert tone="error">{error}</Alert>}
 
       {loading ? (
-        <div className="text-gray-500 py-6">Loading aggregated plant metrics...</div>
+        <PageLoader text="Loading aggregate plant metrics..." />
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
-          <div className="bg-white p-4 rounded shadow border border-gray-200">
-            <p className="text-xs text-gray-500 font-semibold uppercase">Total Plants</p>
-            <p className="text-3xl font-bold text-gray-800 mt-1">
-              {summary?.activePlants ?? 0}
-            </p>
+        <>
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-5">
+            <StatCard label="Total Plants" value={summary?.activePlants ?? 0} />
+            <StatCard
+              label="Running Systems"
+              value={summary?.runningSystems ?? 0}
+              tone="green"
+            />
+            <StatCard
+              label="Fault Count"
+              value={summary?.faultCount ?? 0}
+              tone="red"
+            />
+            <StatCard
+              label="Avg Absolute Error"
+              value={summary?.avgError ?? 0}
+              tone="blue"
+            />
+            <StatCard
+              label="Avg Control Output"
+              value={summary?.avgOutput ?? 0}
+              tone="purple"
+            />
           </div>
 
-          <div className="bg-white p-4 rounded shadow border border-gray-200">
-            <p className="text-xs text-gray-500 font-semibold uppercase">Running Systems</p>
-            <p className="text-3xl font-bold text-green-600 mt-1">
-              {summary?.runningSystems ?? 0}
+          {summary?.timestamp && (
+            <p className="flex items-center gap-1.5 text-xs text-slate-400">
+              <svg
+                className="size-3"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                aria-hidden="true"
+              >
+                <circle cx="12" cy="12" r="10" />
+                <polyline points="12 6 12 12 16 14" />
+              </svg>
+              Last updated:{" "}
+              <time dateTime={new Date(summary.timestamp).toISOString()}>
+                {new Date(summary.timestamp).toLocaleTimeString()}
+              </time>
             </p>
-          </div>
-
-          <div className="bg-white p-4 rounded shadow border border-gray-200">
-            <p className="text-xs text-gray-500 font-semibold uppercase">Fault Count</p>
-            <p className="text-3xl font-bold text-red-600 mt-1">
-              {summary?.faultCount ?? 0}
-            </p>
-          </div>
-
-          <div className="bg-white p-4 rounded shadow border border-gray-200">
-            <p className="text-xs text-gray-500 font-semibold uppercase">Avg Absolute Error</p>
-            <p className="text-3xl font-bold text-blue-600 mt-1">
-              {summary?.avgError ?? 0}
-            </p>
-          </div>
-
-          <div className="bg-white p-4 rounded shadow border border-gray-200">
-            <p className="text-xs text-gray-500 font-semibold uppercase">Avg Control Output</p>
-            <p className="text-3xl font-bold text-purple-600 mt-1">
-              {summary?.avgOutput ?? 0}
-            </p>
-          </div>
-        </div>
+          )}
+        </>
       )}
 
-      <div className="bg-white p-6 rounded shadow border border-gray-200 space-y-4">
-        <h2 className="text-lg font-bold text-gray-800">Control System Monitoring Status</h2>
-        <p className="text-sm text-gray-600">
-          Telemetry readings are polled in real-time. Navigate to the plant list to inspect single control loops or tune PID parameter configurations.
+      <Card>
+        <h2 className="font-semibold text-slate-900">Control System Monitoring</h2>
+        <p className="mt-1 text-sm text-slate-500">
+          Telemetry readings are polled in real-time. Navigate to the plant list
+          to inspect single control loops or tune PID parameter configurations.
         </p>
-        <div>
-          <Link
-            href="/dashboard/plants"
-            className="inline-block py-2 px-4 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded text-sm transition"
-          >
-            View Active Plants &rarr;
+        <div className="mt-4">
+          <Link href="/dashboard/plants">
+            <Button variant="primary">View Active Plants</Button>
           </Link>
         </div>
-      </div>
+      </Card>
     </div>
   );
 }

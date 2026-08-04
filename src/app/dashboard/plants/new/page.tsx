@@ -6,6 +6,16 @@ import { db } from "@/lib/firebase/client";
 import { useAuth } from "@/lib/auth/AuthProvider";
 import { useRouter } from "next/navigation";
 import { ControllerType, PlantType } from "@/lib/simulator";
+import {
+  Alert,
+  Button,
+  Card,
+  Field,
+  Input,
+  PageHeader,
+  PageLoader,
+  Select,
+} from "@/components/ui";
 
 export default function CreatePlantPage() {
   const { profile, loading } = useAuth();
@@ -70,7 +80,7 @@ export default function CreatePlantPage() {
   };
 
   if (loading) {
-    return <div className="text-gray-500">Checking permissions...</div>;
+    return <PageLoader text="Checking permissions..." />;
   }
 
   if (profile?.role !== "ADMIN") {
@@ -78,136 +88,125 @@ export default function CreatePlantPage() {
   }
 
   return (
-    <div className="max-w-xl mx-auto bg-white p-6 rounded border border-gray-200 shadow-sm">
-      <h1 className="text-2xl font-bold text-gray-800 mb-4">Create New Control Plant</h1>
+    <div className="max-w-2xl mx-auto">
+      <Card>
+        <PageHeader
+          title="Create New Control Plant"
+          subtitle="Configure a new simulated control loop"
+        />
 
-      {error && (
-        <div className="mb-4 p-3 bg-red-100 text-red-700 text-sm rounded border border-red-300">
-          {error}
-        </div>
-      )}
+        {error && (
+          <Alert tone="error" className="mb-4">
+            {error}
+          </Alert>
+        )}
 
-      <form onSubmit={handleSubmit} className="space-y-4">
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">Plant Name</label>
-          <input
-            type="text"
-            required
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            placeholder="e.g. DC Motor Speed Loop 1"
-            className="w-full px-3 py-2 border rounded text-sm"
-          />
-        </div>
-
-        <div className="grid grid-cols-2 gap-4">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Plant Type</label>
-            <select
-              value={type}
-              onChange={(e) => setType(e.target.value as PlantType)}
-              className="w-full px-3 py-2 border rounded text-sm"
-            >
-              <option value="DC_MOTOR">DC Motor Speed Control</option>
-              <option value="WATER_TANK">Water Tank Level Control</option>
-              <option value="TEMPERATURE">Temperature Control System</option>
-            </select>
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Controller Type</label>
-            <select
-              value={controllerType}
-              onChange={(e) => setControllerType(e.target.value as ControllerType)}
-              className="w-full px-3 py-2 border rounded text-sm"
-            >
-              <option value="PID">PID Controller</option>
-              <option value="PI">PI Controller</option>
-              <option value="P">P Controller</option>
-            </select>
-          </div>
-        </div>
-
-        <div className="grid grid-cols-3 gap-3">
-          <div>
-            <label className="block text-xs font-semibold text-gray-600 mb-1">Kp</label>
-            <input
-              type="number"
-              step="any"
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <Field label="Plant Name">
+            <Input
+              type="text"
               required
-              value={kp}
-              onChange={(e) => setKp(Number(e.target.value))}
-              className="w-full px-3 py-1.5 border rounded text-sm"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              placeholder="e.g. DC Motor Speed Loop 1"
             />
-          </div>
-          <div>
-            <label className="block text-xs font-semibold text-gray-600 mb-1">Ki</label>
-            <input
-              type="number"
-              step="any"
-              required
-              value={ki}
-              onChange={(e) => setKi(Number(e.target.value))}
-              className="w-full px-3 py-1.5 border rounded text-sm"
-            />
-          </div>
-          <div>
-            <label className="block text-xs font-semibold text-gray-600 mb-1">Kd</label>
-            <input
-              type="number"
-              step="any"
-              required
-              value={kd}
-              onChange={(e) => setKd(Number(e.target.value))}
-              className="w-full px-3 py-1.5 border rounded text-sm"
-            />
-          </div>
-        </div>
+          </Field>
 
-        <div className="grid grid-cols-3 gap-3">
-          <div>
-            <label className="block text-xs font-semibold text-gray-600 mb-1">Setpoint</label>
-            <input
-              type="number"
-              step="any"
-              required
-              value={setpoint}
-              onChange={(e) => setSetpoint(Number(e.target.value))}
-              className="w-full px-3 py-1.5 border rounded text-sm"
-            />
-          </div>
-          <div>
-            <label className="block text-xs font-semibold text-gray-600 mb-1">Output Min</label>
-            <input
-              type="number"
-              step="any"
-              required
-              value={outputMin}
-              onChange={(e) => setOutputMin(Number(e.target.value))}
-              className="w-full px-3 py-1.5 border rounded text-sm"
-            />
-          </div>
-          <div>
-            <label className="block text-xs font-semibold text-gray-600 mb-1">Output Max</label>
-            <input
-              type="number"
-              step="any"
-              required
-              value={outputMax}
-              onChange={(e) => setOutputMax(Number(e.target.value))}
-              className="w-full px-3 py-1.5 border rounded text-sm"
-            />
-          </div>
-        </div>
+          <div className="grid grid-cols-2 gap-4">
+            <Field label="Plant Type">
+              <Select
+                value={type}
+                onChange={(e) => setType(e.target.value as PlantType)}
+              >
+                <option value="DC_MOTOR">DC Motor Speed Control</option>
+                <option value="WATER_TANK">Water Tank Level Control</option>
+                <option value="TEMPERATURE">Temperature Control System</option>
+              </Select>
+            </Field>
 
-        <button
-          type="submit"
-          disabled={submitting}
-          className="w-full py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded transition disabled:opacity-50 text-sm"
-        >
-          {submitting ? "Creating Plant..." : "Create Plant Document"}
-        </button>
-      </form>
+            <Field label="Controller Type">
+              <Select
+                value={controllerType}
+                onChange={(e) => setControllerType(e.target.value as ControllerType)}
+              >
+                <option value="PID">PID Controller</option>
+                <option value="PI">PI Controller</option>
+                <option value="P">P Controller</option>
+              </Select>
+            </Field>
+          </div>
+
+          <div className="grid grid-cols-3 gap-4">
+            <Field label="Kp">
+              <Input
+                type="number"
+                step="any"
+                required
+                value={kp}
+                onChange={(e) => setKp(Number(e.target.value))}
+              />
+            </Field>
+            <Field label="Ki">
+              <Input
+                type="number"
+                step="any"
+                required
+                value={ki}
+                onChange={(e) => setKi(Number(e.target.value))}
+              />
+            </Field>
+            <Field label="Kd">
+              <Input
+                type="number"
+                step="any"
+                required
+                value={kd}
+                onChange={(e) => setKd(Number(e.target.value))}
+              />
+            </Field>
+          </div>
+
+          <div className="grid grid-cols-3 gap-4">
+            <Field label="Setpoint">
+              <Input
+                type="number"
+                step="any"
+                required
+                value={setpoint}
+                onChange={(e) => setSetpoint(Number(e.target.value))}
+              />
+            </Field>
+            <Field label="Output Min">
+              <Input
+                type="number"
+                step="any"
+                required
+                value={outputMin}
+                onChange={(e) => setOutputMin(Number(e.target.value))}
+              />
+            </Field>
+            <Field label="Output Max">
+              <Input
+                type="number"
+                step="any"
+                required
+                value={outputMax}
+                onChange={(e) => setOutputMax(Number(e.target.value))}
+              />
+            </Field>
+          </div>
+
+          <Button
+            type="submit"
+            variant="primary"
+            size="md"
+            className="w-full"
+            loading={submitting}
+          >
+            {submitting ? "Creating Plant..." : "Create Plant Document"}
+          </Button>
+        </form>
+      </Card>
     </div>
   );
 }
