@@ -90,6 +90,10 @@ export default function PlantsListPage() {
                   <Badge tone="blue">{plant.type}</Badge>
                   <span aria-hidden="true">·</span>
                   <span className="truncate">{plant.controllerType}</span>
+                  <span aria-hidden="true">·</span>
+                  <Badge tone={plant.connectionMode === "ESP" ? "purple" : "gray"}>
+                    {plant.connectionMode === "ESP" ? "ESP" : "Simulated"}
+                  </Badge>
                 </p>
 
                 <div className="mb-4 space-y-1 rounded-lg bg-slate-50 p-3 font-mono text-xs tabular-nums">

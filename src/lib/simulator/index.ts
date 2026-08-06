@@ -15,6 +15,7 @@ export interface PlantData {
   outputMin: number;
   outputMax: number;
   status: PlantStatus;
+  connectionMode?: "SIMULATED" | "ESP";
   stepStartAt?: number | null;
   stepStartSetpoint?: number | null;
   createdBy: string;
