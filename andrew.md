@@ -49,3 +49,5 @@ A: This thing is what scared me the most and was the first step towards actually
   - Generating static pages (11/11) completed
 
 A: That was it, I believe the next step is to implement a proper interface to communicate with the ESP via MQTT, one way I know of is using Node-RED. I believe all the pins and actual workings of the device should stay on the esp and away from the web. That way all the web has to be concerned with are the gains, setpoints, etc. One final concern is I'm pretty sure the database itself isn't ready to accept the connectionMode data? I have not explored the db. Wish me luck on getting my arm back. Thank you guys.
+
+A: After creating a "ESP Hardware" plant on the dash, I found out that the start/stop and reset simulation options are still available, also the running indicator should also be paid attention to later when fully integrating real devices
