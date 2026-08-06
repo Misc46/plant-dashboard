@@ -164,6 +164,9 @@ export default function PlantDetailPage({
           <div className="flex items-center gap-3">
             <h1 className="text-2xl font-bold text-slate-900">{plant.name}</h1>
             <StatusBadge status={plant.status} />
+            <Badge tone={plant.connectionMode === "ESP" ? "purple" : "gray"}>
+              {plant.connectionMode === "ESP" ? "ESP Mode" : "Simulated"}
+            </Badge>
           </div>
           <p className="text-xs text-slate-500 font-mono mt-1">
             ID: {plant.id} | Type: {plant.type} | Controller: {plant.controllerType}
