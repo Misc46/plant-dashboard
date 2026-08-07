@@ -185,7 +185,7 @@ export default function PlantDetailPage({
                 variant="warning"
                 onClick={() => handleStatusChange("STOPPED")}
               >
-                Stop
+                Stop Simulation
               </Button>
             )}
             <Button variant="danger" onClick={handleReset}>
