@@ -83,7 +83,13 @@ export default function PlantsListPage() {
                   <h3 className="truncate font-semibold text-slate-900">
                     {plant.name}
                   </h3>
-                  <StatusBadge status={plant.status} />
+                  <StatusBadge 
+                    status={
+                      plant.connectionMode === "ESP" && plant.status === "STOPPED" 
+                        ? "OFFLINE" 
+                        : plant.status
+                    } 
+                  />
                 </div>
 
                 <p className="mb-4 flex items-center gap-1.5 text-xs text-slate-500">
