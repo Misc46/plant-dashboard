@@ -58,7 +58,7 @@ export class PlantSimulator {
         prevError: 0,
       };
       simStateMap.set(plant.id, state);
-    }
+    } // Kalo belom ada data di simStateMap, set integral dan prevError jadi 0 pas pertama kali simulasi
 
     if (plant.status !== "RUNNING") {
       const pv = plant.status === "STOPPED" ? state.pv : 0;
@@ -69,7 +69,7 @@ export class PlantSimulator {
         error: plant.setpoint - pv,
         setpoint: plant.setpoint,
       };
-    }
+    } // Kalo plant tidak running, kembalikan nilai terakhir tanpa mengubah state
 
     // Plant specific physical dynamics parameters
     let gain = 1.0;
@@ -94,33 +94,34 @@ export class PlantSimulator {
     const error = setpoint - state.pv;
 
     // Controller output calculation (P, PI, PID)
-    const pTerm = plant.kp * error;
+    const pTerm = plant.kp * error; // Kontrol Proportional: Seberapa besar error saat ini dikali kp (diset admin saat pembuatan plant)
     let iTerm = 0;
     let dTerm = 0;
 
     if (plant.controllerType === "PI" || plant.controllerType === "PID") {
       state.integral += error * dtSeconds;
       iTerm = plant.ki * state.integral;
-    }
+    } // Kontrol Integral: Menjumlahkan error dari waktu ke waktu dikali ki (diset admin saat pembuatan plant)
+    // Hanya untuk Kontroler jenis PI dan PID
 
     if (plant.controllerType === "PID") {
       const derivative = (error - state.prevError) / (dtSeconds || 0.001);
-      dTerm = plant.kd * derivative;
-    }
+      dTerm = plant.kd * derivative; // Kontrol Derivatif: Menghitung laju perubahan error dikali kd (diset admin saat pembuatan plant)
+    } // Hanya untuk Kontroler jenis PID
 
-    state.prevError = error;
+    state.prevError = error; // Menyimpan error saat ini untuk perhitungan derivative pada step selanjutnya
 
-    const rawOutput = pTerm + iTerm + dTerm;
+    const rawOutput = pTerm + iTerm + dTerm; // Output akhir dari kontroller (P + I + D)
     // Saturation / Output clamping
-    const controlOutput = Math.max(plant.outputMin, Math.min(plant.outputMax, rawOutput));
+    const controlOutput = Math.max(plant.outputMin, Math.min(plant.outputMax, rawOutput)); // Membatasi output kontroller agar tidak melebihi nilai minimum dan maksimum yang telah ditentukan (clamping/saturation)
 
     // Plant process response calculation
-    const dpv = (dtSeconds * (gain * controlOutput - state.pv)) / tau;
-    state.pv += dpv;
+    const dpv = (dtSeconds * (gain * controlOutput - state.pv)) / tau; // Menghitung perubahan nilai PV pada step selanjutnya
+    state.pv += dpv; // Menambahkan perubahan nilai PV ke nilai PV sebelumnya
 
     // Small measurement noise simulating physical sensors
-    const noise = (Math.random() - 0.5) * 0.05;
-    const noisyPv = Math.max(0, state.pv + noise);
+    const noise = (Math.random() - 0.5) * 0.05; // Menambahkan noise pada nilai PV (simulasi sensor)
+    const noisyPv = Math.max(0, state.pv + noise); // Menambahkan noise pada nilai PV (simulasi sensor)
 
     return {
       timestamp: Date.now(),

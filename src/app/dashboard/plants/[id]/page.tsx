@@ -19,6 +19,7 @@ import {
 } from "@/components/ui";
 import axios from "axios";
 import { PerformanceMetrics } from "@/lib/metrics/performance";
+import { wsService } from "@/services/websocket";
 
 export default function PlantDetailPage({
   params,
@@ -60,6 +61,9 @@ export default function PlantDetailPage({
 
   // 2. Listen to Realtime DB telemetry stream using limitToLast(50) for fast bounded rendering
   useEffect(() => {
+    // If it's an ESP, we will rely on the WebSocket instead of (or in addition to) RTDB
+    if (plant?.connectionMode === "ESP") return;
+
     const telemetryQuery = query(ref(rtdb, `telemetry/${id}`), limitToLast(50));
     const unsubRtdb = onValue(telemetryQuery, (snapshot) => {
       if (snapshot.exists()) {
@@ -72,7 +76,36 @@ export default function PlantDetailPage({
     });
 
     return () => unsubRtdb();
-  }, [id]);
+  }, [id, plant?.connectionMode]);
+
+  // 2b. Listen to WebSocket for physical ESP32 data
+  useEffect(() => {
+    if (plant?.connectionMode !== "ESP") return;
+
+    const handleWsMessage = (data: any) => {
+      if (data.temp !== undefined || data.type === "plant_data" || data.processVariable !== undefined) {
+        const pv = data.temp !== undefined ? data.temp : data.processVariable;
+        const cv = data.output !== undefined ? data.output : data.controlOutput || 0;
+        
+        const reading: TelemetryReading = {
+          timestamp: Date.now(),
+          processVariable: pv,
+          setpoint: plant.setpoint,
+          controlOutput: cv,
+          error: pv !== undefined ? plant.setpoint - pv : 0,
+        };
+
+        setTelemetry((prev) => {
+          const newTelemetry = [...prev, reading];
+          if (newTelemetry.length > 50) newTelemetry.shift(); // Keep array size bounded
+          return newTelemetry;
+        });
+      }
+    };
+
+    wsService.subscribe(handleWsMessage);
+    return () => wsService.unsubscribe(handleWsMessage);
+  }, [plant?.connectionMode, plant?.setpoint]);
 
   // 3. Fetch performance metrics calculation from GET /api/plants/[id]/performance
   const fetchMetrics = useCallback(() => {
@@ -134,6 +167,8 @@ export default function PlantDetailPage({
     setSavingConfig(true);
     try {
       const setpointChanged = plant.setpoint !== setpoint;
+      
+      // Update Firestore state
       await updateDoc(doc(db, "plants", id), {
         kp,
         ki,
@@ -144,6 +179,11 @@ export default function PlantDetailPage({
           : {}),
         updatedAt: serverTimestamp(),
       });
+
+      // Send command to ESP via WebSocket if in ESP mode
+      if (plant.connectionMode === "ESP") {
+        wsService.sendDeviceCommand({ kp, ki, kd, setpoint });
+      }
       alert("Configuration updated successfully.");
     } catch {
       alert("Failed to save config. Check authorization.");
@@ -163,7 +203,13 @@ export default function PlantDetailPage({
         <div>
           <div className="flex items-center gap-3">
             <h1 className="text-2xl font-bold text-slate-900">{plant.name}</h1>
-            <StatusBadge status={plant.status} />
+            <StatusBadge 
+              status={
+                plant.connectionMode === "ESP" && plant.status === "STOPPED" 
+                  ? "OFFLINE" 
+                  : plant.status
+              } 
+            />
             <Badge tone={plant.connectionMode === "ESP" ? "purple" : "gray"}>
               {plant.connectionMode === "ESP" ? "ESP Mode" : "Simulated"}
             </Badge>
@@ -174,7 +220,7 @@ export default function PlantDetailPage({
         </div>
 
         {/* Command Buttons (ADMIN only) */}
-        {isAdmin && (
+        {isAdmin && plant.connectionMode !== "ESP" && (
           <div className="flex items-center gap-2">
             {plant.status !== "RUNNING" ? (
               <Button
