@@ -95,14 +95,17 @@ export function Badge({
 
 /* ------------------------------- StatusBadge ------------------------------ */
 
-const statusMap = {
-  RUNNING: { tone: "green" as const, pulse: true },
-  FAULT: { tone: "red" as const, pulse: true },
-  STOPPED: { tone: "gray" as const, pulse: false },
-};
-
-export function StatusBadge({ status }: { status: keyof typeof statusMap }) {
-  const { tone, pulse } = statusMap[status];
+export function StatusBadge({ status }: { status: string }) {
+  const map: Record<string, { tone: keyof typeof badgeTones; pulse: boolean }> = {
+    RUNNING: { tone: "green", pulse: true },
+    FAULT: { tone: "red", pulse: true },
+    STOPPED: { tone: "gray", pulse: false },
+    OFFLINE: { tone: "gray", pulse: false },
+    DISCONNECTED: { tone: "gray", pulse: false },
+  };
+  
+  const { tone, pulse } = map[status] || { tone: "gray", pulse: false };
+  
   return (
     <Badge tone={tone} pulse={pulse}>
       {status}
