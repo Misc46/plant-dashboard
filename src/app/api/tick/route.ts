@@ -38,9 +38,9 @@ export async function POST(req: Request) {
       let lastReading: TelemetryReading | null = null;
       if (lastSnap.exists()) {
         const valObj = lastSnap.val();
-        const firstKey = Object.keys(valObj)[0];
-        if (firstKey) {
-          lastReading = valObj[firstKey];
+        const keys = Object.keys(valObj);
+        if (keys.length > 0) {
+          lastReading = valObj[keys[0]];
         }
       }
 

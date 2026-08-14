@@ -65,6 +65,7 @@ export default function PlantDetailPage({
       if (snapshot.exists()) {
         const valObj = snapshot.val();
         const readings: TelemetryReading[] = Object.values(valObj);
+        readings.sort((a, b) => a.timestamp - b.timestamp);
         setTelemetry(readings);
       } else {
         setTelemetry([]);
