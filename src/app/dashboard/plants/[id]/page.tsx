@@ -83,19 +83,32 @@ export default function PlantDetailPage({
     if (plant?.connectionMode !== "ESP") return;
 
     const handleWsMessage = (data: any) => {
-      if (data.temp !== undefined || data.type === "plant_data" || data.processVariable !== undefined) {
-        const pv = data.temp !== undefined ? data.temp : data.processVariable;
-        const cv = data.output !== undefined ? data.output : data.controlOutput || 0;
-        
-        const reading: TelemetryReading = {
-          timestamp: Date.now(),
-          processVariable: pv,
-          setpoint: plant.setpoint,
-          controlOutput: cv,
-          error: pv !== undefined ? plant.setpoint - pv : 0,
-        };
-
+      if (
+        data.temp !== undefined || 
+        data.processVariable !== undefined || 
+        data.output !== undefined || 
+        data.controlOutput !== undefined || 
+        data.type === "plant_data"
+      ) {
         setTelemetry((prev) => {
+          const lastReading = prev.length > 0 ? prev[prev.length - 1] : null;
+          
+          const pv = data.temp !== undefined 
+            ? data.temp 
+            : (data.processVariable !== undefined ? data.processVariable : (lastReading ? lastReading.processVariable : 0));
+            
+          const cv = data.output !== undefined 
+            ? data.output 
+            : (data.controlOutput !== undefined ? data.controlOutput : (lastReading ? lastReading.controlOutput : 0));
+          
+          const reading: TelemetryReading = {
+            timestamp: Date.now(),
+            processVariable: pv,
+            setpoint: plant.setpoint,
+            controlOutput: cv,
+            error: plant.setpoint - pv,
+          };
+
           const newTelemetry = [...prev, reading];
           if (newTelemetry.length > 50) newTelemetry.shift(); // Keep array size bounded
           return newTelemetry;
