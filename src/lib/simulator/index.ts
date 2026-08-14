@@ -57,7 +57,7 @@ export class PlantSimulator {
         prevError: 0,
       };
       simStateMap.set(plant.id, state);
-    } // Kalo belom ada data di simStateMap, set integral dan prevError jadi 0 pas pertama kali simulasi
+    }
 
     if (plant.status !== "RUNNING") {
       const pv = plant.status === "STOPPED" ? state.pv : 0;

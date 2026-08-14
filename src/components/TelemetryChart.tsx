@@ -16,11 +16,20 @@ export default function TelemetryChart({ data }: UPlotChartProps) {
   useEffect(() => {
     if (!containerRef.current) return;
 
+    // Filter out duplicate timestamps and sort chronologically for strict uPlot monotonicity
+    const uniqueMap = new Map<number, TelemetryReading>();
+    for (const d of data) {
+      const secKey = Math.floor(d.timestamp / 1000);
+      // Keep latest sample if duplicate second timestamp
+      uniqueMap.set(secKey, d);
+    }
+    const sortedData = Array.from(uniqueMap.values()).sort((a, b) => a.timestamp - b.timestamp);
+
     // Prep initial timestamps, PV, and Setpoint data arrays
-    const timestamps = data.map((d) => d.timestamp / 1000);
-    const pvs = data.map((d) => d.processVariable);
-    const setpoints = data.map((d) => d.setpoint);
-    const outputs = data.map((d) => d.controlOutput);
+    const timestamps = sortedData.map((d) => d.timestamp / 1000);
+    const pvs = sortedData.map((d) => d.processVariable);
+    const setpoints = sortedData.map((d) => d.setpoint);
+    const outputs = sortedData.map((d) => d.controlOutput);
 
     const chartData: uPlot.AlignedData = [timestamps, pvs, setpoints, outputs];
 
