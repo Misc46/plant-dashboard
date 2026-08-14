@@ -6,12 +6,14 @@ class WebSocketService {
   private brokerUrl = process.env.NEXT_PUBLIC_WS_BROKER_URL || 'ws://localhost:1880/ws/esp';
   private reconnectInterval = 3000;
   private isConnecting = false;
+  private intentionallyClosed = false;
 
   connect() {
     if (this.socket && this.socket.readyState !== WebSocket.CLOSED) return;
     if (this.isConnecting) return;
 
     this.isConnecting = true;
+    this.intentionallyClosed = false;
     try {
       this.socket = new WebSocket(this.brokerUrl);
 
@@ -37,9 +39,15 @@ class WebSocketService {
       };
 
       this.socket.onclose = () => {
-        console.warn('WebSocket closed. Reconnecting in 3s...');
         this.socket = null;
         this.isConnecting = false;
+        
+        if (this.intentionallyClosed) {
+          console.log('WebSocket closed intentionally.');
+          return;
+        }
+        
+        console.warn('WebSocket closed. Reconnecting in 3s...');
         setTimeout(() => this.connect(), this.reconnectInterval);
       };
 
@@ -62,12 +70,20 @@ class WebSocketService {
     }
   }
 
+  disconnect() {
+    this.intentionallyClosed = true;
+    if (this.socket) {
+      this.socket.close();
+      this.socket = null;
+    }
+    this.isConnecting = false;
+  }
+
   unsubscribe(callback: (payload: any) => void) {
     this.callbacks = this.callbacks.filter((cb) => cb !== callback);
     // Optional: close connection if no more listeners
-    if (this.callbacks.length === 0 && this.socket) {
-      this.socket.close();
-      this.socket = null;
+    if (this.callbacks.length === 0) {
+      this.disconnect();
     }
   }
 
@@ -84,4 +100,10 @@ class WebSocketService {
   }
 }
 
-export const wsService = new WebSocketService();
+const globalForWs = globalThis as unknown as { wsService: WebSocketService };
+
+export const wsService = globalForWs.wsService || new WebSocketService();
+
+if (process.env.NODE_ENV !== 'production') {
+  globalForWs.wsService = wsService;
+}
