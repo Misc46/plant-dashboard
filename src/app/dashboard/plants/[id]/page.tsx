@@ -19,6 +19,7 @@ import {
 } from "@/components/ui";
 import axios from "axios";
 import { PerformanceMetrics } from "@/lib/metrics/performance";
+import { ExportTelemetryMenu } from "@/components/ExportTelemetryMenu";
 
 export default function PlantDetailPage({
   params,
@@ -170,9 +171,13 @@ export default function PlantDetailPage({
           </p>
         </div>
 
-        {/* Command Buttons (ADMIN only) */}
-        {isAdmin && (
-          <div className="flex items-center gap-2">
+        {/* Export is available to every signed-in role; the command buttons
+            below stay ADMIN-only. */}
+        <div className="flex flex-wrap items-start gap-2">
+          <ExportTelemetryMenu plantId={plant.id} />
+
+          {isAdmin && (
+            <>
             {plant.status !== "RUNNING" ? (
               <Button
                 variant="success"
@@ -191,8 +196,9 @@ export default function PlantDetailPage({
             <Button variant="danger" onClick={handleReset}>
               Reset
             </Button>
-          </div>
-        )}
+            </>
+          )}
+        </div>
       </Card>
 
       {/* Real-time Telemetry Chart */}
