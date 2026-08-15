@@ -1,7 +1,6 @@
 import { NextResponse } from "next/server";
 import { adminAuth, adminDb, adminRtdb } from "@/lib/firebase/admin";
 import { FieldValue } from "firebase-admin/firestore";
-import { PlantSimulator } from "@/lib/simulator";
 
 export async function POST(
   req: Request,
@@ -45,11 +44,10 @@ export async function POST(
       updatedAt: FieldValue.serverTimestamp(),
     });
 
-    // 2. Wipe the telemetry stream so the chart starts clean
+    // 2. Wipe the telemetry stream so the chart starts clean.
+    //    The simulator is stateless (state is rebuilt from the last reading),
+    //    so the next run seeds itself from PV = 0 / integral = 0 automatically.
     await adminRtdb.ref(`telemetry/${id}`).remove();
-
-    // 3. Clear in-memory simulator state so the next run starts from PV = 0
-    PlantSimulator.resetState(id);
 
     return NextResponse.json({ message: "Plant reset successfully" });
   } catch (error) {

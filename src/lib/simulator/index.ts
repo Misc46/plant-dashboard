@@ -28,6 +28,11 @@ export interface TelemetryReading {
   controlOutput: number;
   error: number;
   setpoint: number;
+  // Full controller state persisted with every reading so any ticker instance
+  // (multiple laptops/tabs/serverless workers) can continue the simulation
+  // seamlessly from the last stored reading.
+  integral: number;
+  prevError: number;
 }
 
 interface PlantSimState {
@@ -36,28 +41,27 @@ interface PlantSimState {
   prevError: number;
 }
 
-// Memory cache for simulator state per plant during execution
-const simStateMap = new Map<string, PlantSimState>();
-
 export class PlantSimulator {
   /**
    * Calculates next simulation step for a plant.
    * Model: First-order differential equation: y[k+1] = y[k] + dt * (gain * u[k] - y[k]) / tau
+   *
+   * Stateless by design: the full controller state (pv, integral, prevError) is
+   * rebuilt from the last persisted reading on every call, so concurrent ticker
+   * instances can never diverge from each other.
    */
   static simulateStep(
     plant: PlantData,
     lastReading?: TelemetryReading | null,
     dtSeconds: number = 0.5
   ): TelemetryReading {
-    let state = simStateMap.get(plant.id);
-    if (!state) {
-      state = {
-        pv: lastReading ? lastReading.processVariable : 0,
-        integral: 0,
-        prevError: 0,
-      };
-      simStateMap.set(plant.id, state);
-    }
+    // Seed the full simulation state from the last persisted reading.
+    // Legacy readings (pre state-persistence) fall back to zeroed integrators.
+    const state: PlantSimState = {
+      pv: lastReading ? lastReading.processVariable : 0,
+      integral: lastReading?.integral ?? 0,
+      prevError: lastReading?.prevError ?? 0,
+    };
 
     if (plant.status !== "RUNNING") {
       const pv = plant.status === "STOPPED" ? state.pv : 0;
@@ -67,6 +71,8 @@ export class PlantSimulator {
         controlOutput: 0,
         error: plant.setpoint - pv,
         setpoint: plant.setpoint,
+        integral: state.integral,
+        prevError: state.prevError,
       };
     } // Kalo plant tidak running, kembalikan nilai terakhir tanpa mengubah state
 
@@ -128,10 +134,8 @@ export class PlantSimulator {
       controlOutput: Number(controlOutput.toFixed(3)),
       error: Number((setpoint - noisyPv).toFixed(3)),
       setpoint: setpoint,
+      integral: state.integral,
+      prevError: state.prevError,
     };
-  }
-
-  static resetState(plantId: string) {
-    simStateMap.delete(plantId);
   }
 }
