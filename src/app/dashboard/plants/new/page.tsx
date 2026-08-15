@@ -38,6 +38,7 @@ export default function CreatePlantPage() {
   const [transferGain, setTransferGain] = useState("1");
   const [timeConstantTau, setTimeConstantTau] = useState("2");
   const [antiWindup, setAntiWindup] = useState(false);
+  const [connectionMode, setConnectionMode] = useState<"SIMULATED" | "ESP">("SIMULATED");
 
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -85,6 +86,7 @@ export default function CreatePlantPage() {
             }
           : {}),
         status: "STOPPED",
+        connectionMode,
         stepStartAt: null,
         stepStartSetpoint: null,
         createdBy: profile.uid,
@@ -132,6 +134,33 @@ export default function CreatePlantPage() {
               onChange={(e) => setName(e.target.value)}
               placeholder="e.g. DC Motor Speed Loop 1"
             />
+          </Field>
+
+          <Field label="Connection Mode" hint="Choose between virtual software simulation or physical ESP hardware controller">
+            <div className="flex rounded-lg bg-slate-100 p-1 w-full max-w-xs">
+              <button
+                type="button"
+                onClick={() => setConnectionMode("SIMULATED")}
+                className={`flex-1 rounded-md py-2 text-xs font-semibold transition-all ${
+                  connectionMode === "SIMULATED"
+                    ? "bg-white text-blue-600 shadow-sm"
+                    : "text-slate-600 hover:text-slate-900"
+                }`}
+              >
+                Simulated
+              </button>
+              <button
+                type="button"
+                onClick={() => setConnectionMode("ESP")}
+                className={`flex-1 rounded-md py-2 text-xs font-semibold transition-all ${
+                  connectionMode === "ESP"
+                    ? "bg-white text-blue-600 shadow-sm"
+                    : "text-slate-600 hover:text-slate-900"
+                }`}
+              >
+                ESP Hardware
+              </button>
+            </div>
           </Field>
 
           <div className="grid grid-cols-2 gap-4">

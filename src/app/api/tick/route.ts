@@ -37,6 +37,10 @@ export async function POST(req: Request) {
     for (const doc of snapshot.docs) {
       const plant = { id: doc.id, ...doc.data() } as PlantData;
 
+      if (plant.connectionMode === "ESP") {
+        continue;
+      }
+
       // Get last RTDB telemetry reading for process variable continuity
       const rtdbRef = adminRtdb.ref(`telemetry/${plant.id}`);
       const lastSnap = await rtdbRef.orderByKey().limitToLast(1).once("value");

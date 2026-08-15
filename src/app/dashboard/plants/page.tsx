@@ -83,13 +83,23 @@ export default function PlantsListPage() {
                   <h3 className="truncate font-semibold text-slate-900">
                     {plant.name}
                   </h3>
-                  <StatusBadge status={plant.status} />
+                  <StatusBadge 
+                    status={
+                      plant.connectionMode === "ESP" && plant.status === "STOPPED" 
+                        ? "OFFLINE" 
+                        : plant.status
+                    } 
+                  />
                 </div>
 
                 <p className="mb-4 flex items-center gap-1.5 text-xs text-slate-500">
                   <Badge tone="blue">{plant.type}</Badge>
                   <span aria-hidden="true">·</span>
                   <span className="truncate">{plant.controllerType}</span>
+                  <span aria-hidden="true">·</span>
+                  <Badge tone={plant.connectionMode === "ESP" ? "purple" : "gray"}>
+                    {plant.connectionMode === "ESP" ? "ESP" : "Simulated"}
+                  </Badge>
                 </p>
 
                 <div className="mb-4 space-y-1 rounded-lg bg-slate-50 p-3 font-mono text-xs tabular-nums">
