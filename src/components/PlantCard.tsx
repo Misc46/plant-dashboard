@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
-import { PlantData } from "@/lib/simulator";
+import { PlantData, getPlantUnit } from "@/lib/simulator";
 import { Badge, StatusBadge } from "@/components/ui";
 import { formatAbsoluteTime, formatRelativeTime } from "@/lib/time";
 
@@ -169,7 +169,9 @@ export function PlantCard({
       <div className="pointer-events-none relative z-0 mb-4 space-y-1 rounded-lg bg-slate-50 p-3 font-mono text-xs tabular-nums">
         <p>
           <span className="text-slate-400">SP</span>{" "}
-          <span className="font-medium text-slate-700">{plant.setpoint}</span>
+          <span className="font-medium text-slate-700">
+            {plant.setpoint} {getPlantUnit(plant)}
+          </span>
         </p>
         <p className="text-slate-700">
           Kp {plant.kp} · Ki {plant.ki} · Kd {plant.kd}
@@ -183,13 +185,23 @@ export function PlantCard({
       <div className="pointer-events-none relative z-0 mt-auto">
         <div className="flex items-start justify-between gap-2">
           <h3 className="truncate font-semibold text-slate-900">{plant.name}</h3>
-          <StatusBadge status={plant.status} />
+          <StatusBadge
+            status={
+              plant.connectionMode === "ESP" && plant.status === "STOPPED"
+                ? "OFFLINE"
+                : plant.status
+            }
+          />
         </div>
 
         <p className="mt-1.5 flex items-center gap-1.5 text-xs text-slate-500">
           <Badge tone="blue">{plant.type}</Badge>
           <span aria-hidden="true">·</span>
           <span className="truncate">{plant.controllerType}</span>
+          <span aria-hidden="true">·</span>
+          <Badge tone={plant.connectionMode === "ESP" ? "purple" : "gray"}>
+            {plant.connectionMode === "ESP" ? "ESP" : "Simulated"}
+          </Badge>
         </p>
 
         <p
