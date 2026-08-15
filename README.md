@@ -50,6 +50,56 @@ The `/api/plants/[id]/performance` API calculates standard step response metrics
 
 ---
 
+## ESP Hardware Mode
+
+Plants created with `connectionMode: "ESP"` replace the in-app simulator with real hardware. The ESP32 runs a water-tank simulation, and a local Node-RED instance acts as the PID controller and message bridge.
+
+```
+ESP32 (PubSubClient + ArduinoJson)          Browser (this app)
+        │  MQTT esp32plant/output                  │
+        ▼                                        WebSocket ws://localhost:1880/ws/esp
+  Node-RED (node-red-contrib-aedes broker) ◄──────┘  PID config (Kp, Ki, Kd, setpoint)
+        │  MQTT esp32plant/control
+        ▼
+  ESP32 actuator (pump simulation)
+```
+
+Simulation files are in `ESPSimulation/`:
+
+```
+ESPSimulation/
+├── NodeRedFlows.json                                # Node-RED PID routing flow & WebSocket bridge
+└── WaterTankSimulation_NodeRed_TugasWebCaslabTekken.ino  # ESP32 firmware with water tank simulation
+```
+
+**Node-RED setup:**
+1. Install Node-RED locally: <https://nodered.org/docs/getting-started/local>.
+2. In the burger menu → **Manage palettes → Install**, add the `node-red-contrib-aedes` package (local MQTT broker).
+3. Import `ESPSimulation/NodeRedFlows.json`, then click **Deploy**. Node-RED now serves the WebSocket bridge at `ws://localhost:1880/ws/esp`.
+
+**ESP32 setup:**
+1. Libraries: `PubSubClient` (Nick O'Leary) and `ArduinoJson` (Benoit Blanchon, v6.x or v7.x).
+2. In the firmware, set `WIFI_SSID`, `WIFI_PASSWORD`, and `MQTT_BROKER` to the Wi-Fi network and the Node-RED machine's LAN IP.
+
+**Known limitation (deployment):** The WebSocket broker URL is resolved **by the browser**, not the server. When the app is opened from a different device or accessed via the Vercel deployment, `ws://localhost:1880/ws/esp` points to *that visitor's* machine — not the one running Node-RED — so the connection fails. ESP hardware mode works out of the box only when the browser and Node-RED are on the same machine (e.g. `localhost` during a demo).
+
+**Workarounds:**
+
+- **Option A — Cloudflare Tunnel / ngrok (recommended for demos):** Expose your local Node-RED port with a public HTTPS URL, then set the `NEXT_PUBLIC_WS_BROKER_URL` environment variable in your Vercel project settings to the corresponding `wss://` address:
+  ```
+  # Vercel → Project Settings → Environment Variables
+  NEXT_PUBLIC_WS_BROKER_URL=wss://your-subdomain.trycloudflare.com/ws/esp
+  ```
+  Start the tunnel with:
+  ```bash
+  cloudflared tunnel --url http://localhost:1880
+  ```
+  Convert the resulting `https://...` address to `wss://` and paste it as the variable value.
+
+- **Option B — Host Node-RED in the cloud:** Deploy Node-RED to a VPS (e.g. DigitalOcean, Render, or Railway) with a domain and SSL certificate. Set `NEXT_PUBLIC_WS_BROKER_URL` to that permanent `wss://` address. Simulated plants are unaffected by either option.
+
+---
+
 ## Firebase Project Setup Steps
 
 1. Create a Firebase project in the [Firebase Console](https://console.firebase.google.com/).
@@ -86,7 +136,9 @@ FIREBASE_ADMIN_PROJECT_ID=your_project_id
 FIREBASE_ADMIN_CLIENT_EMAIL=firebase-adminsdk-xxx@your_project.iam.gserviceaccount.com
 FIREBASE_ADMIN_PRIVATE_KEY="-----BEGIN PRIVATE KEY-----\n..."
 
-# Node-RED WebSocket broker for ESP hardware plants (client-side)
+# Node-RED WebSocket broker for ESP hardware plants (client-side, optional)
+# Defaults to ws://localhost:1880/ws/esp; override with a wss:// tunnel or
+# cloud Node-RED URL for deployed environments (see "ESP Hardware Mode").
 NEXT_PUBLIC_WS_BROKER_URL=ws://localhost:1880/ws/esp
 ```
 
@@ -99,8 +151,14 @@ NEXT_PUBLIC_WS_BROKER_URL=ws://localhost:1880/ws/esp
    npm install
    ```
 
-2. **Seed Initial Firestore/Auth Data** (Admin user, Viewer user, 3 sample plants):
+2. **Seed Initial Firestore/Auth Data** (Admin user, Viewer user, 6 sample plants covering every plant type, controller type, and connection mode):
    ```bash
+   npx tsx scripts/seed.ts
+   ```
+
+   To wipe the database and rebuild it from scratch (clears plants, users, and telemetry; recreates the demo auth accounts):
+   ```bash
+   npx tsx scripts/clear.ts
    npx tsx scripts/seed.ts
    ```
 
