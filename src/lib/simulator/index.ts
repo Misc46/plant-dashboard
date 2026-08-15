@@ -21,6 +21,9 @@ export interface PlantData {
   // Conditional-integration anti-windup for PI/PID controllers. Optional so
   // legacy plants default to the original behavior (no anti-windup).
   antiWindup?: boolean;
+  // Display unit for the process variable (e.g. "RPM", "cm", "°C"). Optional
+  // so legacy plants fall back to the per-type default via getPlantUnit().
+  unit?: string;
   status: PlantStatus;
   connectionMode?: "SIMULATED" | "ESP";
   stepStartAt?: number | null;
@@ -68,6 +71,25 @@ export function getPlantDynamics(plant: PlantData): { gain: number; tau: number 
         gain: plant.transferGain && plant.transferGain > 0 ? plant.transferGain : 1.0,
         tau: plant.timeConstantTau && plant.timeConstantTau > 0 ? plant.timeConstantTau : 1.0,
       };
+  }
+}
+
+/**
+ * Display unit for the plant's process variable. Preset types map to a fixed
+ * physical unit; CUSTOM plants carry a free-text unit chosen at creation.
+ * Accepts a partial plant so the create form can compute the label before a
+ * PlantData object exists.
+ */
+export function getPlantUnit(plant: Pick<PlantData, "type" | "unit">): string {
+  switch (plant.type) {
+    case "DC_MOTOR":
+      return "RPM";
+    case "WATER_TANK":
+      return "cm";
+    case "TEMPERATURE":
+      return "°C";
+    case "CUSTOM":
+      return plant.unit || "Unit";
   }
 }
 
