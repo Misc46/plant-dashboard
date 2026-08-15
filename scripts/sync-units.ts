@@ -25,7 +25,9 @@ async function syncUnits() {
   console.log(`Unit sync complete: ${updated} updated, ${skipped} already correct.`);
 }
 
-syncUnits().catch((err) => {
-  console.error("Unit sync failed:", err);
-  process.exit(1);
-});
+syncUnits()
+  .then(() => process.exit(0))
+  .catch((err) => {
+    console.error("Unit sync failed:", err);
+    process.exit(1);
+  });
