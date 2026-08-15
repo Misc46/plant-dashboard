@@ -1,6 +1,17 @@
+/** Payload exchanged with the Node-RED broker for ESP hardware plants. */
+export interface EspTelemetryPayload {
+  temp?: number;
+  processVariable?: number;
+  output?: number;
+  controlOutput?: number;
+  type?: string;
+  activePlants?: unknown;
+  [key: string]: unknown;
+}
+
 class WebSocketService {
   private socket: WebSocket | null = null;
-  private callbacks: ((payload: any) => void)[] = [];
+  private callbacks: ((payload: EspTelemetryPayload) => void)[] = [];
   
   // Update to use the user's requested endpoint
   private brokerUrl = process.env.NEXT_PUBLIC_WS_BROKER_URL || 'ws://localhost:1880/ws/esp';
@@ -24,7 +35,7 @@ class WebSocketService {
 
       this.socket.onmessage = (event) => {
         try {
-          const data = JSON.parse(event.data);
+          const data = JSON.parse(event.data) as EspTelemetryPayload;
           // Only process it if it contains expected fields or just pass it through
           if (data.temp !== undefined || data.type === 'plant_data' || data.activePlants !== undefined) {
             console.log('Received plant update:', data);
@@ -33,7 +44,7 @@ class WebSocketService {
              // Fallback for general dashboard data
              this.callbacks.forEach((cb) => cb(data));
           }
-        } catch (err) {
+        } catch {
           console.log('Raw text received:', event.data);
         }
       };
@@ -62,7 +73,7 @@ class WebSocketService {
     }
   }
 
-  subscribe(callback: (payload: any) => void) {
+  subscribe(callback: (payload: EspTelemetryPayload) => void) {
     this.callbacks.push(callback);
     
     if (!this.socket || this.socket.readyState === WebSocket.CLOSED) {
@@ -79,7 +90,7 @@ class WebSocketService {
     this.isConnecting = false;
   }
 
-  unsubscribe(callback: (payload: any) => void) {
+  unsubscribe(callback: (payload: EspTelemetryPayload) => void) {
     this.callbacks = this.callbacks.filter((cb) => cb !== callback);
     // Optional: close connection if no more listeners
     if (this.callbacks.length === 0) {
@@ -87,7 +98,7 @@ class WebSocketService {
     }
   }
 
-  sendDeviceCommand(commandValue: any) {
+  sendDeviceCommand(commandValue: Record<string, unknown>) {
     if (this.socket && this.socket.readyState === WebSocket.OPEN) {
       const payload = {
         type: 'control',

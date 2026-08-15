@@ -22,7 +22,7 @@ import {
 } from "@/components/ui";
 import axios from "axios";
 import { PerformanceMetrics } from "@/lib/metrics/performance";
-import { wsService } from "@/services/websocket";
+import { wsService, type EspTelemetryPayload } from "@/services/websocket";
 
 export default function PlantDetailPage({
   params,
@@ -95,7 +95,7 @@ export default function PlantDetailPage({
   useEffect(() => {
     if (plant?.connectionMode !== "ESP") return;
 
-    const handleWsMessage = (data: any) => {
+    const handleWsMessage = (data: EspTelemetryPayload) => {
       if (
         data.temp !== undefined || 
         data.processVariable !== undefined || 
