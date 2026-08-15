@@ -1,14 +1,13 @@
 import { NextResponse } from "next/server";
 import { adminAuth, adminDb, adminRtdb } from "@/lib/firebase/admin";
-import { PlantSimulator } from "@/lib/simulator";
 
 /**
  * DELETE /api/plants/[id]
  *
  * Firestore rules already allow an ADMIN to delete the plant document from the
- * client, but that would orphan the telemetry stream in the Realtime Database
- * and leave stale in-memory simulator state on the server. This route removes
- * all three together.
+ * client, but that would orphan the telemetry stream in the Realtime Database.
+ * This route removes the stream and the document together; the simulator is
+ * stateless, so dropping the stream is all the server-side cleanup needed.
  */
 export async function DELETE(
   req: Request,
@@ -48,10 +47,7 @@ export async function DELETE(
     //    plant document, so the operation stays retryable.
     await adminRtdb.ref(`telemetry/${id}`).remove();
 
-    // 2. Clear in-memory simulator state
-    PlantSimulator.resetState(id);
-
-    // 3. Remove the plant document
+    // 2. Remove the plant document
     await plantRef.delete();
 
     return NextResponse.json({ message: "Plant deleted successfully" });
