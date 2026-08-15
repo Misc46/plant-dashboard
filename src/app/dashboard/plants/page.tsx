@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { collection, onSnapshot } from "firebase/firestore";
 import { db } from "@/lib/firebase/client";
 import { PlantData } from "@/lib/simulator";
@@ -15,10 +15,13 @@ import {
   PageLoader,
   StatusBadge,
 } from "@/components/ui";
+import { wsService } from "@/services/websocket";
 
 export default function PlantsListPage() {
   const [plants, setPlants] = useState<PlantData[]>([]);
   const [loading, setLoading] = useState(true);
+  const [espLive, setEspLive] = useState<{ isOnline: boolean; pv: number | null }>({ isOnline: false, pv: null });
+  const onlineTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const { profile } = useAuth();
 
   useEffect(() => {
@@ -41,6 +44,36 @@ export default function PlantsListPage() {
 
     return () => unsubscribe();
   }, []);
+
+  // Subscribe to WebSocket for live ESP telemetry
+  useEffect(() => {
+    const hasEsp = plants.some((p) => p.connectionMode === "ESP");
+    if (!hasEsp) return;
+
+    const handleWsMessage = (data: any) => {
+      const pv =
+        data.processVariable !== undefined
+          ? data.processVariable
+          : data.temp !== undefined
+          ? data.temp
+          : null;
+
+      if (pv === null && data.controlValue === undefined) return;
+
+      setEspLive({ isOnline: true, pv: pv ?? espLive.pv });
+
+      if (onlineTimeoutRef.current) clearTimeout(onlineTimeoutRef.current);
+      onlineTimeoutRef.current = setTimeout(() => {
+        setEspLive((prev) => ({ ...prev, isOnline: false }));
+      }, 5000);
+    };
+
+    wsService.subscribe(handleWsMessage);
+    return () => {
+      wsService.unsubscribe(handleWsMessage);
+      if (onlineTimeoutRef.current) clearTimeout(onlineTimeoutRef.current);
+    };
+  }, [plants, espLive.pv]);
 
   const addPlantAction =
     profile?.role === "ADMIN" ? (
@@ -83,12 +116,14 @@ export default function PlantsListPage() {
                   <h3 className="truncate font-semibold text-slate-900">
                     {plant.name}
                   </h3>
-                  <StatusBadge 
+                  <StatusBadge
                     status={
-                      plant.connectionMode === "ESP" && plant.status === "STOPPED" 
-                        ? "OFFLINE" 
+                      plant.connectionMode === "ESP"
+                        ? espLive.isOnline
+                          ? "ONLINE"
+                          : "OFFLINE"
                         : plant.status
-                    } 
+                    }
                   />
                 </div>
 
@@ -108,6 +143,21 @@ export default function PlantsListPage() {
                     <span className="font-medium text-slate-700">
                       {plant.setpoint}
                     </span>
+                    {plant.connectionMode === "ESP" && espLive.pv !== null && (
+                      <>
+                        <span className="mx-2 text-slate-300">|</span>
+                        <span className="text-slate-400">PV</span>{" "}
+                        <span
+                          className={`font-medium ${
+                            espLive.isOnline
+                              ? "text-emerald-600"
+                              : "text-slate-400"
+                          }`}
+                        >
+                          {espLive.pv.toFixed(2)}
+                        </span>
+                      </>
+                    )}
                   </p>
                   <p className="text-slate-700">
                     Kp {plant.kp} · Ki {plant.ki} · Kd {plant.kd}

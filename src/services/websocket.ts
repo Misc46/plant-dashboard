@@ -1,101 +1,141 @@
 class WebSocketService {
   private socket: WebSocket | null = null;
   private callbacks: ((payload: any) => void)[] = [];
-  
-  // Update to use the user's requested endpoint
+
   private brokerUrl = process.env.NEXT_PUBLIC_WS_BROKER_URL || 'ws://localhost:1880/ws/esp';
   private reconnectInterval = 3000;
-  private isConnecting = false;
+  private reconnectTimer: NodeJS.Timeout | null = null;
   private intentionallyClosed = false;
 
   connect() {
-    if (this.socket && this.socket.readyState !== WebSocket.CLOSED) return;
-    if (this.isConnecting) return;
+    console.log('[WebSocketService] connect() called. Current readyState:', this.socket?.readyState);
+    if (this.socket && (this.socket.readyState === WebSocket.OPEN || this.socket.readyState === WebSocket.CONNECTING)) {
+      console.log('[WebSocketService] Already connected or connecting. Aborting new connection attempt.');
+      return;
+    }
 
-    this.isConnecting = true;
+    console.log('[WebSocketService] Cleaning up old socket and preparing new connection.');
+    this.cleanupSocket();
     this.intentionallyClosed = false;
-    try {
-      this.socket = new WebSocket(this.brokerUrl);
 
-      this.socket.onopen = () => {
-        console.log('Connected to Node-RED WebSocket at', this.brokerUrl);
-        this.isConnecting = false;
+    if (this.reconnectTimer) {
+      clearTimeout(this.reconnectTimer);
+      this.reconnectTimer = null;
+    }
+
+    try {
+      const ws = new WebSocket(this.brokerUrl);
+      this.socket = ws;
+      console.log('[WebSocketService] Created new WebSocket instance.');
+
+      ws.onopen = () => {
+        if (this.socket !== ws) {
+          console.log('[WebSocketService] onopen fired for stale socket. Closing it.');
+          return ws.close();
+        }
+        console.log('[WebSocketService] Connected to Node-RED WebSocket at', this.brokerUrl);
       };
 
-      this.socket.onmessage = (event) => {
+      ws.onmessage = (event) => {
+        if (this.socket !== ws) {
+          console.log('[WebSocketService] onmessage fired for stale socket. Closing it.');
+          return ws.close();
+        }
+        
         try {
           const data = JSON.parse(event.data);
-          // Only process it if it contains expected fields or just pass it through
-          if (data.temp !== undefined || data.type === 'plant_data' || data.activePlants !== undefined) {
-            console.log('Received plant update:', data);
-            this.callbacks.forEach((cb) => cb(data));
-          } else {
-             // Fallback for general dashboard data
-             this.callbacks.forEach((cb) => cb(data));
-          }
+          console.log(`[WebSocketService] Received message. Dispatching to ${this.callbacks.length} callbacks.`, data);
+          this.callbacks.forEach((cb) => cb(data));
         } catch (err) {
-          console.log('Raw text received:', event.data);
+          console.log('[WebSocketService] Raw text received:', event.data);
         }
       };
 
-      this.socket.onclose = () => {
-        this.socket = null;
-        this.isConnecting = false;
-        
-        if (this.intentionallyClosed) {
-          console.log('WebSocket closed intentionally.');
+      ws.onclose = () => {
+        console.log('[WebSocketService] onclose fired.');
+        if (this.socket !== ws) {
+          console.log('[WebSocketService] onclose fired for stale socket. Ignoring.');
           return;
         }
-        
-        console.warn('WebSocket closed. Reconnecting in 3s...');
-        setTimeout(() => this.connect(), this.reconnectInterval);
+
+        this.socket = null;
+
+        if (this.intentionallyClosed) {
+          console.log('[WebSocketService] WebSocket closed intentionally. No reconnect.');
+          return;
+        }
+
+        console.warn(`[WebSocketService] WebSocket closed unexpectedly. Reconnecting in ${this.reconnectInterval}ms...`);
+        this.reconnectTimer = setTimeout(() => this.connect(), this.reconnectInterval);
       };
 
-      this.socket.onerror = (err) => {
-        console.error('WebSocket error:', err);
-        this.socket?.close();
+      ws.onerror = (err) => {
+        console.error('[WebSocketService] WebSocket error:', err);
+        if (this.socket !== ws) return;
+        ws.close();
       };
     } catch (err) {
-      console.error('Failed to establish WebSocket:', err);
-      this.isConnecting = false;
-      setTimeout(() => this.connect(), this.reconnectInterval);
+      console.error('[WebSocketService] Failed to establish WebSocket:', err);
+      if (!this.intentionallyClosed) {
+        this.reconnectTimer = setTimeout(() => this.connect(), this.reconnectInterval);
+      }
+    }
+  }
+
+  private cleanupSocket() {
+    if (this.socket) {
+      console.log('[WebSocketService] Cleaning up socket (readyState:', this.socket.readyState, ')');
+      this.socket.onclose = null;
+      this.socket.onmessage = null;
+      this.socket.onerror = null;
+      this.socket.onopen = null;
+      if (this.socket.readyState !== WebSocket.CLOSED) {
+        this.socket.close();
+      }
+      this.socket = null;
     }
   }
 
   subscribe(callback: (payload: any) => void) {
-    this.callbacks.push(callback);
-    
-    if (!this.socket || this.socket.readyState === WebSocket.CLOSED) {
+    console.log('[WebSocketService] subscribe() called.');
+    if (!this.callbacks.includes(callback)) {
+      this.callbacks.push(callback);
+      console.log(`[WebSocketService] Callback added. Total callbacks: ${this.callbacks.length}`);
+    } else {
+      console.log('[WebSocketService] Callback already exists.');
+    }
+
+    if (!this.socket || this.socket.readyState === WebSocket.CLOSED || this.socket.readyState === WebSocket.CLOSING) {
+      console.log('[WebSocketService] Socket not open. Initiating connection.');
       this.connect();
     }
   }
 
   disconnect() {
+    console.log('[WebSocketService] disconnect() called.');
     this.intentionallyClosed = true;
-    if (this.socket) {
-      this.socket.close();
-      this.socket = null;
+    if (this.reconnectTimer) {
+      clearTimeout(this.reconnectTimer);
+      this.reconnectTimer = null;
     }
-    this.isConnecting = false;
+    this.cleanupSocket();
   }
 
   unsubscribe(callback: (payload: any) => void) {
+    console.log('[WebSocketService] unsubscribe() called.');
     this.callbacks = this.callbacks.filter((cb) => cb !== callback);
-    // Optional: close connection if no more listeners
+    console.log(`[WebSocketService] Callback removed. Total callbacks: ${this.callbacks.length}`);
     if (this.callbacks.length === 0) {
+      console.log('[WebSocketService] No more callbacks. Disconnecting.');
       this.disconnect();
     }
   }
 
-  sendDeviceCommand(commandValue: any) {
+  sendDeviceCommand(payload: any) {
     if (this.socket && this.socket.readyState === WebSocket.OPEN) {
-      const payload = {
-        type: 'control',
-        command: commandValue
-      };
       this.socket.send(JSON.stringify(payload));
     } else {
-      console.warn('WebSocket is not connected yet.');
+      console.warn('[WebSocketService] WebSocket is not connected yet.');
     }
   }
 }

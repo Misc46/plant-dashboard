@@ -40,6 +40,7 @@ export default function PlantDetailPage({
   const [kd, setKd] = useState(0);
   const [setpoint, setSetpoint] = useState(0);
   const [savingConfig, setSavingConfig] = useState(false);
+  const [isOnline, setIsOnline] = useState(false);
 
   const isAdmin = profile?.role === "ADMIN";
 
@@ -82,14 +83,21 @@ export default function PlantDetailPage({
   useEffect(() => {
     if (plant?.connectionMode !== "ESP") return;
 
+    let onlineTimeout: NodeJS.Timeout;
+
     const handleWsMessage = (data: any) => {
       if (
         data.temp !== undefined || 
         data.processVariable !== undefined || 
         data.output !== undefined || 
         data.controlOutput !== undefined || 
+        data.controlValue !== undefined ||
         data.type === "plant_data"
       ) {
+        setIsOnline(true);
+        clearTimeout(onlineTimeout);
+        onlineTimeout = setTimeout(() => setIsOnline(false), 5000); // 5 seconds without data = offline
+
         setTelemetry((prev) => {
           const lastReading = prev.length > 0 ? prev[prev.length - 1] : null;
           
@@ -97,16 +105,20 @@ export default function PlantDetailPage({
             ? data.temp 
             : (data.processVariable !== undefined ? data.processVariable : (lastReading ? lastReading.processVariable : 0));
             
-          const cv = data.output !== undefined 
-            ? data.output 
-            : (data.controlOutput !== undefined ? data.controlOutput : (lastReading ? lastReading.controlOutput : 0));
+          const cv = data.controlValue !== undefined
+            ? data.controlValue
+            : (data.output !== undefined 
+                ? data.output 
+                : (data.controlOutput !== undefined ? data.controlOutput : (lastReading ? lastReading.controlOutput : 0)));
+                
+          const sp = data.setpoint !== undefined ? data.setpoint : plant.setpoint;
           
           const reading: TelemetryReading = {
             timestamp: Date.now(),
             processVariable: pv,
-            setpoint: plant.setpoint,
+            setpoint: sp,
             controlOutput: cv,
-            error: plant.setpoint - pv,
+            error: sp - pv,
           };
 
           const newTelemetry = [...prev, reading];
@@ -117,7 +129,10 @@ export default function PlantDetailPage({
     };
 
     wsService.subscribe(handleWsMessage);
-    return () => wsService.unsubscribe(handleWsMessage);
+    return () => {
+      wsService.unsubscribe(handleWsMessage);
+      clearTimeout(onlineTimeout);
+    };
   }, [plant?.connectionMode, plant?.setpoint]);
 
   // 3. Fetch performance metrics calculation from GET /api/plants/[id]/performance
@@ -195,7 +210,7 @@ export default function PlantDetailPage({
 
       // Send command to ESP via WebSocket if in ESP mode
       if (plant.connectionMode === "ESP") {
-        wsService.sendDeviceCommand({ kp, ki, kd, setpoint });
+        wsService.sendDeviceCommand({ type: "pid_config", kp, ki, kd, setpoint });
       }
       alert("Configuration updated successfully.");
     } catch {
@@ -218,8 +233,8 @@ export default function PlantDetailPage({
             <h1 className="text-2xl font-bold text-slate-900">{plant.name}</h1>
             <StatusBadge 
               status={
-                plant.connectionMode === "ESP" && plant.status === "STOPPED" 
-                  ? "OFFLINE" 
+                plant.connectionMode === "ESP" 
+                  ? (isOnline ? "ONLINE" : "OFFLINE")
                   : plant.status
               } 
             />

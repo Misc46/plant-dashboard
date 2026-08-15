@@ -98,6 +98,7 @@ export function Badge({
 export function StatusBadge({ status }: { status: string }) {
   const map: Record<string, { tone: keyof typeof badgeTones; pulse: boolean }> = {
     RUNNING: { tone: "green", pulse: true },
+    ONLINE: { tone: "green", pulse: true },
     FAULT: { tone: "red", pulse: true },
     STOPPED: { tone: "gray", pulse: false },
     OFFLINE: { tone: "gray", pulse: false },
