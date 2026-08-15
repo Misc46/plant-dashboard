@@ -1,3 +1,5 @@
+import { toast } from "@/components/ui";
+
 /** Payload exchanged with the Node-RED broker for ESP hardware plants. */
 export interface EspTelemetryPayload {
   temp?: number;
@@ -9,15 +11,29 @@ export interface EspTelemetryPayload {
   [key: string]: unknown;
 }
 
+const BROKER_UNREACHABLE_MSG_PREFIX = "Can't reach the Node-RED WebSocket broker";
+
 class WebSocketService {
   private socket: WebSocket | null = null;
   private callbacks: ((payload: EspTelemetryPayload) => void)[] = [];
   
-  // Update to use the user's requested endpoint
+  // Resolved by the browser, not the server — Node-RED must be reachable from
+  // the machine opening the app. Overridable via env for tunnel/cloud setups
+  // (see README "ESP Hardware Mode").
   private brokerUrl = process.env.NEXT_PUBLIC_WS_BROKER_URL || 'ws://localhost:1880/ws/esp';
   private reconnectInterval = 3000;
   private isConnecting = false;
   private intentionallyClosed = false;
+  private errorToastShown = false;
+
+  private notifyBrokerUnreachable() {
+    if (this.errorToastShown) return;
+    this.errorToastShown = true;
+    toast(
+      `${BROKER_UNREACHABLE_MSG_PREFIX} (${this.brokerUrl}). ESP plants won't update live — start Node-RED (or set NEXT_PUBLIC_WS_BROKER_URL) and open this app from a machine that can reach the broker.`,
+      "error"
+    );
+  }
 
   connect() {
     if (this.socket && this.socket.readyState !== WebSocket.CLOSED) return;
@@ -31,6 +47,7 @@ class WebSocketService {
       this.socket.onopen = () => {
         console.log('Connected to Node-RED WebSocket at', this.brokerUrl);
         this.isConnecting = false;
+        this.errorToastShown = false;
       };
 
       this.socket.onmessage = (event) => {
@@ -62,13 +79,13 @@ class WebSocketService {
         setTimeout(() => this.connect(), this.reconnectInterval);
       };
 
-      this.socket.onerror = (err) => {
-        console.error('WebSocket error:', err);
+      this.socket.onerror = () => {
+        this.notifyBrokerUnreachable();
         this.socket?.close();
       };
-    } catch (err) {
-      console.error('Failed to establish WebSocket:', err);
+    } catch {
       this.isConnecting = false;
+      this.notifyBrokerUnreachable();
       setTimeout(() => this.connect(), this.reconnectInterval);
     }
   }
