@@ -55,13 +55,17 @@ export default function BodePlot({ plant }: { plant: PlantData }) {
       const pad = (max - min) * 0.1 || 1;
       return [min - pad, max + pad];
     };
+    // uPlot formats the x scale as dates by default; explicit numeric labels
+    // keep frequencies from rendering as 1970 timestamps.
+    const freqTicks: uPlot.Axis.Values = (_u, splits) =>
+      splits.map((v) => Number(v.toPrecision(3)).toString());
 
     const magAxes: uPlot.Axis[] = [
-      { scale: "x", label: "Frequency [rad/s]", grid: { show: true } },
+      { scale: "x", label: "Frequency [rad/s]", grid: { show: true }, values: freqTicks },
       { scale: "y", label: "Magnitude [dB]", grid: { show: true } },
     ];
     const phaseAxes: uPlot.Axis[] = [
-      { scale: "x", label: "Frequency [rad/s]", grid: { show: true } },
+      { scale: "x", label: "Frequency [rad/s]", grid: { show: true }, values: freqTicks },
       { scale: "y", label: "Phase [deg]", grid: { show: true } },
     ];
     const magSeries: uPlot.Series[] = [
@@ -105,7 +109,7 @@ export default function BodePlot({ plant }: { plant: PlantData }) {
         height: 260,
         legend: { show: false },
         cursor: { sync: { key: "bode", scales: ["x", null] } },
-        scales: { x: { distr: 3, range: xRange }, y: { range: yPad } },
+        scales: { x: { time: false, distr: 3, range: xRange }, y: { range: yPad } },
         axes: magAxes,
         series: magSeries,
       },
@@ -119,7 +123,7 @@ export default function BodePlot({ plant }: { plant: PlantData }) {
         height: 240,
         legend: { show: false },
         cursor: { sync: { key: "bode", scales: ["x", null] } },
-        scales: { x: { distr: 3, range: xRange }, y: { range: yPad } },
+        scales: { x: { time: false, distr: 3, range: xRange }, y: { range: yPad } },
         axes: phaseAxes,
         series: phaseSeries,
       },
