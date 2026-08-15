@@ -1,0 +1,257 @@
+[
+    {
+        "id": "6139ca60410f6a16",
+        "type": "tab",
+        "label": "Flow 1",
+        "disabled": false,
+        "info": "",
+        "env": []
+    },
+    {
+        "id": "55f9b8232ef7a57b",
+        "type": "mqtt-broker",
+        "name": "",
+        "broker": "localhost",
+        "port": 1883,
+        "clientid": "",
+        "autoConnect": true,
+        "usetls": false,
+        "protocolVersion": 4,
+        "keepalive": 60,
+        "cleansession": true,
+        "autoUnsubscribe": true,
+        "birthTopic": "",
+        "birthQos": "0",
+        "birthRetain": "false",
+        "birthPayload": "",
+        "birthMsg": {},
+        "closeTopic": "",
+        "closeQos": "0",
+        "closeRetain": "false",
+        "closePayload": "",
+        "closeMsg": {},
+        "willTopic": "",
+        "willQos": "0",
+        "willRetain": "false",
+        "willPayload": "",
+        "willMsg": {},
+        "userProps": "",
+        "sessionExpiry": ""
+    },
+    {
+        "id": "42b6277b93e10794",
+        "type": "websocket-listener",
+        "path": "/ws/esp",
+        "wholemsg": "false"
+    },
+    {
+        "id": "07a2fecd3c80293f",
+        "type": "mqtt in",
+        "z": "6139ca60410f6a16",
+        "name": "",
+        "topic": "esp32plant/output",
+        "qos": "2",
+        "datatype": "json",
+        "broker": "55f9b8232ef7a57b",
+        "nl": false,
+        "rap": true,
+        "rh": 0,
+        "inputs": 0,
+        "x": 290,
+        "y": 440,
+        "wires": [
+            [
+                "20342c98bb37b546"
+            ]
+        ]
+    },
+    {
+        "id": "a658f5d1ec68fe16",
+        "type": "aedes broker",
+        "z": "6139ca60410f6a16",
+        "name": "esp32plant",
+        "mqtt_port": 1883,
+        "mqtt_ws_bind": "port",
+        "mqtt_ws_port": "",
+        "mqtt_ws_path": "",
+        "cert": "",
+        "key": "",
+        "ca": "",
+        "certname": "",
+        "keyname": "",
+        "caname": "",
+        "persistence_bind": "memory",
+        "dburl": "",
+        "persist_to_file": false,
+        "usetls": false,
+        "x": 260,
+        "y": 220,
+        "wires": [
+            [],
+            []
+        ]
+    },
+    {
+        "id": "686b49a09c608e18",
+        "type": "websocket out",
+        "z": "6139ca60410f6a16",
+        "name": "",
+        "server": "42b6277b93e10794",
+        "client": "",
+        "x": 710,
+        "y": 500,
+        "wires": []
+    },
+    {
+        "id": "dd24ee12c8607f1f",
+        "type": "mqtt out",
+        "z": "6139ca60410f6a16",
+        "name": "",
+        "topic": "esp32plant/control",
+        "qos": "",
+        "retain": "",
+        "respTopic": "",
+        "contentType": "",
+        "userProps": "",
+        "correl": "",
+        "expiry": "",
+        "broker": "55f9b8232ef7a57b",
+        "x": 730,
+        "y": 440,
+        "wires": []
+    },
+    {
+        "id": "1a8fa9ba3393d78b",
+        "type": "websocket in",
+        "z": "6139ca60410f6a16",
+        "name": "",
+        "server": "42b6277b93e10794",
+        "client": "",
+        "x": 270,
+        "y": 620,
+        "wires": [
+            [
+                "6605e23c98abb1e7"
+            ]
+        ]
+    },
+    {
+        "id": "6605e23c98abb1e7",
+        "type": "json",
+        "z": "6139ca60410f6a16",
+        "name": "",
+        "property": "payload",
+        "action": "",
+        "pretty": false,
+        "x": 430,
+        "y": 620,
+        "wires": [
+            [
+                "62b2bca050942cac"
+            ]
+        ]
+    },
+    {
+        "id": "b220ec762b8a7a1b",
+        "type": "inject",
+        "z": "6139ca60410f6a16",
+        "name": "",
+        "props": [
+            {
+                "p": "payload"
+            }
+        ],
+        "repeat": "",
+        "crontab": "",
+        "once": true,
+        "onceDelay": 0.1,
+        "topic": "",
+        "payload": "{\"processVariable\":50}",
+        "payloadType": "json",
+        "x": 320,
+        "y": 280,
+        "wires": [
+            [
+                "6eced903be6f5d64"
+            ]
+        ]
+    },
+    {
+        "id": "6eced903be6f5d64",
+        "type": "websocket out",
+        "z": "6139ca60410f6a16",
+        "name": "",
+        "server": "42b6277b93e10794",
+        "client": "",
+        "x": 530,
+        "y": 280,
+        "wires": []
+    },
+    {
+        "id": "62b2bca050942cac",
+        "type": "function",
+        "z": "6139ca60410f6a16",
+        "name": "Store Variables",
+        "func": "// Store variables kp, ki, kd\nif (msg.payload && msg.payload.type === \"pid_config\") {\n    if (msg.payload.kp !== undefined) flow.set(\"kp\", Number(msg.payload.kp));\n    if (msg.payload.ki !== undefined) flow.set(\"ki\", Number(msg.payload.ki));\n    if (msg.payload.kd !== undefined) flow.set(\"kd\", Number(msg.payload.kd));\n    if (msg.payload.setpoint !== undefined) flow.set(\"setpoint\", Number(msg.payload.setpoint));\n\n    node.status({ fill: \"green\", shape: \"dot\", text: \"Settings Updated\" });\n}\nreturn null;",
+        "outputs": 1,
+        "timeout": 0,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 600,
+        "y": 620,
+        "wires": [
+            []
+        ]
+    },
+    {
+        "id": "20342c98bb37b546",
+        "type": "function",
+        "z": "6139ca60410f6a16",
+        "name": "Calculate PID",
+        "func": "// Calculate PID Output\nconst kp = flow.get(\"kp\") ?? 0.0;\nconst ki = flow.get(\"ki\") ?? 0.0;\nconst kd = flow.get(\"kd\") ?? 0.0;\nconst setpoint = flow.get(\"setpoint\") ?? 0.0;\n\n// Parse\nlet payload = msg.payload;\nif (typeof payload === \"string\") {\n  try { payload = JSON.parse(payload); } catch(e) { return null; }\n}\nconst pv = Number(payload?.processVariable);\nif (isNaN(pv)) return null;\n\n// Time\nlet integral = flow.get(\"integral\") ?? 0;\nlet lastError = flow.get(\"lastError\") ?? 0;\nlet lastTime = flow.get(\"lastTime\") ?? Date.now();\nconst now = Date.now();\n\nlet dt = (now - lastTime) / 1000.0;\nif (dt <= 0 || isNaN(dt)) dt = 1.0;\n\n// PID Calculation\nconst error = setpoint - pv;\nintegral += error * dt;\nintegral = Math.max(-500, Math.min(500, integral)); //Anti-windup\nconst derivative = (error - lastError) / dt;\nlet output = (kp * error) + (ki * integral) + (kd * derivative);\noutput = Math.max(0, Math.min(100, output)); \n\n// Update \nflow.set(\"integral\", integral);\nflow.set(\"lastError\", error);\nflow.set(\"lastTime\", now);\n\n// Output \nconst msgESP = { payload: { controlValue: Number(output.toFixed(2)) } };\nconst msgUI = { \n  payload: { \n    controlValue: Number(output.toFixed(2)), \n    processVariable: pv, \n    setpoint: setpoint \n  } \n};\n\nreturn [msgESP, msgUI];",
+        "outputs": 2,
+        "timeout": 0,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 500,
+        "y": 440,
+        "wires": [
+            [
+                "dd24ee12c8607f1f",
+                "d05b9b963414d26f"
+            ],
+            [
+                "686b49a09c608e18"
+            ]
+        ]
+    },
+    {
+        "id": "d05b9b963414d26f",
+        "type": "debug",
+        "z": "6139ca60410f6a16",
+        "name": "debug 1",
+        "active": true,
+        "tosidebar": true,
+        "console": false,
+        "tostatus": false,
+        "complete": "payload",
+        "targetType": "msg",
+        "statusVal": "",
+        "statusType": "auto",
+        "x": 700,
+        "y": 560,
+        "wires": []
+    },
+    {
+        "id": "543ec18ca36ffb0e",
+        "type": "global-config",
+        "env": [],
+        "modules": {
+            "node-red-contrib-aedes": "1.2.0"
+        }
+    }
+]
