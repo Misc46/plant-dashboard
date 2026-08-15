@@ -22,6 +22,7 @@ export interface PlantData {
   // legacy plants default to the original behavior (no anti-windup).
   antiWindup?: boolean;
   status: PlantStatus;
+  connectionMode?: "SIMULATED" | "ESP";
   stepStartAt?: number | null;
   stepStartSetpoint?: number | null;
   createdBy: string;
