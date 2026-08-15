@@ -5,7 +5,7 @@ import { collection, addDoc } from "firebase/firestore";
 import { db } from "@/lib/firebase/client";
 import { useAuth } from "@/lib/auth/AuthProvider";
 import { useRouter } from "next/navigation";
-import { ControllerType, PlantType } from "@/lib/simulator";
+import { ControllerType, PlantType, getPlantUnit } from "@/lib/simulator";
 import {
   Alert,
   Button,
@@ -17,6 +17,15 @@ import {
   Select,
   Toggle,
 } from "@/components/ui";
+
+// Realistic operating points per plant type so fresh plants start inside the
+// reachable range of their dynamics (setpoint must stay below K*100).
+const DEFAULT_SETPOINT: Record<PlantType, string> = {
+  DC_MOTOR: "1000",
+  WATER_TANK: "50",
+  TEMPERATURE: "180",
+  CUSTOM: "100",
+};
 
 export default function CreatePlantPage() {
   const { profile, loading } = useAuth();
@@ -31,7 +40,9 @@ export default function CreatePlantPage() {
   const [kp, setKp] = useState("1.2");
   const [ki, setKi] = useState("0.4");
   const [kd, setKd] = useState("0.1");
-  const [setpoint, setSetpoint] = useState("100");
+  const [setpoint, setSetpoint] = useState(DEFAULT_SETPOINT.DC_MOTOR);
+  const [setpointTouched, setSetpointTouched] = useState(false);
+  const [unit, setUnit] = useState("Unit");
   const [samplingPeriodMs] = useState(500);
   const [outputMin, setOutputMin] = useState("0");
   const [outputMax, setOutputMax] = useState("100");
@@ -87,6 +98,7 @@ export default function CreatePlantPage() {
           : {}),
         status: "STOPPED",
         connectionMode,
+        unit: getPlantUnit({ type, unit }),
         stepStartAt: null,
         stepStartSetpoint: null,
         createdBy: profile.uid,
@@ -167,7 +179,12 @@ export default function CreatePlantPage() {
             <Field label="Plant Type">
               <Select
                 value={type}
-                onChange={(e) => setType(e.target.value as PlantType)}
+                onChange={(e) => {
+                  const nextType = e.target.value as PlantType;
+                  setType(nextType);
+                  // Keep the suggested setpoint until the user edits it manually
+                  if (!setpointTouched) setSetpoint(DEFAULT_SETPOINT[nextType]);
+                }}
               >
                 <option value="DC_MOTOR">DC Motor Speed Control</option>
                 <option value="WATER_TANK">Water Tank Level Control</option>
@@ -176,17 +193,35 @@ export default function CreatePlantPage() {
               </Select>
             </Field>
 
-            <Field label="Controller Type">
-              <Select
-                value={controllerType}
-                onChange={(e) => setControllerType(e.target.value as ControllerType)}
-              >
-                <option value="PID">PID Controller</option>
-                <option value="PI">PI Controller</option>
-                <option value="P">P Controller</option>
-              </Select>
+            <Field
+              label="Process Variable Unit"
+              hint={
+                type === "CUSTOM"
+                  ? "Free text, e.g. kPa, lux, %RH"
+                  : "Fixed for this plant type"
+              }
+            >
+              <Input
+                type="text"
+                required
+                value={getPlantUnit({ type, unit })}
+                onChange={(e) => setUnit(e.target.value)}
+                disabled={type !== "CUSTOM"}
+                placeholder="Unit"
+              />
             </Field>
           </div>
+
+          <Field label="Controller Type">
+            <Select
+              value={controllerType}
+              onChange={(e) => setControllerType(e.target.value as ControllerType)}
+            >
+              <option value="PID">PID Controller</option>
+              <option value="PI">PI Controller</option>
+              <option value="P">P Controller</option>
+            </Select>
+          </Field>
 
           {type === "CUSTOM" && (
             <div className="grid grid-cols-2 gap-4">
@@ -262,13 +297,16 @@ export default function CreatePlantPage() {
           </div>
 
           <div className="grid grid-cols-3 gap-4">
-            <Field label="Setpoint">
+            <Field label={`Setpoint (${getPlantUnit({ type, unit })})`}>
               <Input
                 type="number"
                 step="any"
                 required
                 value={setpoint}
-                onChange={(e) => setSetpoint(e.target.value)}
+                onChange={(e) => {
+                  setSetpoint(e.target.value);
+                  setSetpointTouched(true);
+                }}
               />
             </Field>
             <Field label="Output Min">
