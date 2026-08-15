@@ -7,9 +7,10 @@ import { TelemetryReading } from "@/lib/simulator";
 
 interface UPlotChartProps {
   data: TelemetryReading[];
+  unit?: string;
 }
 
-export default function TelemetryChart({ data }: UPlotChartProps) {
+export default function TelemetryChart({ data, unit }: UPlotChartProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const chartRef = useRef<uPlot | null>(null);
 
@@ -40,18 +41,18 @@ export default function TelemetryChart({ data }: UPlotChartProps) {
       series: [
         {},
         {
-          label: "Process Variable (PV)",
+          label: unit ? `PV (${unit})` : "PV",
           stroke: "rgb(37, 99, 235)",
           width: 2,
         },
         {
-          label: "Setpoint (SP)",
+          label: unit ? `SP (${unit})` : "SP",
           stroke: "rgb(220, 38, 38)",
           width: 1.5,
           dash: [5, 5],
         },
         {
-          label: "Control Output (u)",
+          label: "Output (%)",
           stroke: "rgb(147, 51, 234)",
           width: 1.5,
         },
@@ -84,7 +85,7 @@ export default function TelemetryChart({ data }: UPlotChartProps) {
     return () => {
       window.removeEventListener("resize", handleResize);
     };
-  }, [data]);
+  }, [data, unit]);
 
   return (
     <div className="w-full rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
@@ -96,14 +97,14 @@ export default function TelemetryChart({ data }: UPlotChartProps) {
               className="inline-block size-2 rounded-full"
               style={{ backgroundColor: "rgb(37, 99, 235)" }}
             />
-            PV
+            {unit ? `PV (${unit})` : "PV"}
           </span>
           <span className="flex items-center gap-1.5 text-xs font-mono text-red-600">
             <span
               className="inline-block size-2 rounded-full"
               style={{ backgroundColor: "rgb(220, 38, 38)" }}
             />
-            SP
+            {unit ? `SP (${unit})` : "SP"}
           </span>
           <span className="flex items-center gap-1.5 text-xs font-mono text-purple-600">
             <span

@@ -4,7 +4,7 @@ import { use, useCallback, useEffect, useState } from "react";
 import { doc, onSnapshot, updateDoc, serverTimestamp } from "firebase/firestore";
 import { ref, onValue, query, limitToLast } from "firebase/database";
 import { db, rtdb } from "@/lib/firebase/client";
-import { PlantData, TelemetryReading } from "@/lib/simulator";
+import { PlantData, TelemetryReading, getPlantUnit } from "@/lib/simulator";
 import { useAuth } from "@/lib/auth/AuthProvider";
 import TelemetryChart from "@/components/TelemetryChart";
 import BodePlot from "@/components/BodePlot";
@@ -265,7 +265,7 @@ export default function PlantDetailPage({
             </Badge>
           </div>
           <p className="text-xs text-slate-500 font-mono mt-1">
-            ID: {plant.id} | Type: {plant.type} | Controller: {plant.controllerType}
+            ID: {plant.id} | Type: {plant.type} | Controller: {plant.controllerType} | Unit: {getPlantUnit(plant)}
             {plant.type === "CUSTOM" && (
               <> | G(s) = {plant.transferGain} / ({plant.timeConstantTau}s + 1)</>
             )}
@@ -312,7 +312,7 @@ export default function PlantDetailPage({
         />
       </div>
       {activeTab === "telemetry" ? (
-        <TelemetryChart data={telemetry} />
+        <TelemetryChart data={telemetry} unit={getPlantUnit(plant)} />
       ) : (
         <BodePlot plant={plant} />
       )}
@@ -384,7 +384,7 @@ export default function PlantDetailPage({
 
           <form onSubmit={handleSaveConfig} className="space-y-3">
             <div className="grid grid-cols-2 gap-4">
-              <Field label="Setpoint">
+              <Field label={`Setpoint (${getPlantUnit(plant)})`}>
                 <Input
                   type="number"
                   step="any"
