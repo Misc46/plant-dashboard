@@ -81,9 +81,9 @@ export function formatLocal(ms: number, timeZone: string): string {
   // Some runtimes emit "24" instead of "00" for midnight.
   const hour = get("hour") === "24" ? "00" : get("hour");
 
-  return `${get("year")}-${get("month")}-${get("day")} ${hour}:${get(
+  return `"${get("year")}-${get("month")}-${get("day")} ${hour}:${get(
     "minute"
-  )}:${get("second")}`;
+  )}:${get("second")}"`;
 }
 
 /** Falls back to UTC for a missing or unknown zone, never the server's own. */

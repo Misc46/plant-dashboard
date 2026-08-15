@@ -19,11 +19,13 @@ import {
   StatCard,
   StatusBadge,
   Toggle,
+  toast,
 } from "@/components/ui";
 import axios from "axios";
 import { PerformanceMetrics } from "@/lib/metrics/performance";
 import { wsService, type EspTelemetryPayload } from "@/services/websocket";
 import { ExportTelemetryMenu } from "@/components/ExportTelemetryMenu";
+import { TuningAdvisor } from "@/components/TuningAdvisor";
 
 export default function PlantDetailPage({
   params,
@@ -170,7 +172,7 @@ export default function PlantDetailPage({
         updatedAt: serverTimestamp(),
       });
     } catch {
-      alert("Failed to update status. Check permissions.");
+      toast("Failed to update status. Check permissions.", "error");
     }
   };
 
@@ -187,7 +189,7 @@ export default function PlantDetailPage({
       );
       setTelemetry([]);
     } catch {
-      alert("Failed to reset plant state.");
+      toast("Failed to reset plant state.", "error");
     }
   };
 
@@ -199,7 +201,7 @@ export default function PlantDetailPage({
       plant.type === "CUSTOM" &&
       (Number(transferGain) <= 0 || Number(timeConstantTau) <= 0)
     ) {
-      alert("Transfer gain (K) and time constant (τ) must be greater than zero.");
+      toast("Transfer gain (K) and time constant (τ) must be greater than zero.", "warning");
       return;
     }
 
@@ -235,9 +237,9 @@ export default function PlantDetailPage({
           setpoint: Number(setpoint),
         });
       }
-      alert("Configuration updated successfully.");
+      toast("Configuration updated successfully.", "success");
     } catch {
-      alert("Failed to save config. Check authorization.");
+      toast("Failed to save config. Check authorization.", "error");
     } finally {
       setSavingConfig(false);
     }
@@ -473,14 +475,17 @@ export default function PlantDetailPage({
             )}
 
             {isAdmin && (
-              <Button
-                type="submit"
-                variant="primary"
-                className="w-full mt-2"
-                loading={savingConfig}
-              >
-                {savingConfig ? "Saving Changes..." : "Update Plant Parameters"}
-              </Button>
+              <>
+                <TuningAdvisor plant={plant} />
+                <Button
+                  type="submit"
+                  variant="primary"
+                  className="w-full mt-2"
+                  loading={savingConfig}
+                >
+                  {savingConfig ? "Saving Changes..." : "Update Plant Parameters"}
+                </Button>
+              </>
             )}
           </form>
         </Card>

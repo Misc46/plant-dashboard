@@ -141,8 +141,12 @@ export class PlantSimulator {
 
     if (plant.controllerType === "PI" || plant.controllerType === "PID") {
       if (plant.antiWindup) {
-        // Anti-windup path: compute iTerm from the integral accumulated so far
-        // and defer this step's accumulation until the clamped output is known.
+        // Anti-windup path: tentatively accumulate this step's error so that
+        // rawOutput is computed with the current integral. The saturation check
+        // below will roll back the accumulation if the output is saturated,
+        // eliminating the one-step lag that would otherwise let windup grow
+        // for one extra tick before clamping kicks in.
+        state.integral += error * dtSeconds;
         iTerm = plant.ki * state.integral;
       } else {
         state.integral += error * dtSeconds;
@@ -162,16 +166,16 @@ export class PlantSimulator {
     // Saturation / Output clamping
     const controlOutput = Math.max(plant.outputMin, Math.min(plant.outputMax, rawOutput)); // Membatasi output kontroller agar tidak melebihi nilai minimum dan maksimum yang telah ditentukan (clamping/saturation)
 
-    // Anti-windup (conditional integration): accumulate the integral only when
-    // the error pushes the output away from a saturated limit. While the output
-    // is pinned at a limit, the integral stops growing so it unwinds quickly
-    // once the error reverses.
+    // Anti-windup (conditional integration): rawOutput was computed with the
+    // tentatively-updated integral. If the output is saturated and the error
+    // is still pushing in the same direction, roll back this step's
+    // accumulation so the integral stops growing (or shrinking) at the limit.
     const hasIntegralTerm = plant.controllerType === "PI" || plant.controllerType === "PID";
     if (plant.antiWindup && hasIntegralTerm) {
       const pushingAgainstHigh = error > 0 && rawOutput >= plant.outputMax;
       const pushingAgainstLow = error < 0 && rawOutput <= plant.outputMin;
-      if (!pushingAgainstHigh && !pushingAgainstLow) {
-        state.integral += error * dtSeconds;
+      if (pushingAgainstHigh || pushingAgainstLow) {
+        state.integral -= error * dtSeconds; // roll back tentative accumulation
       }
     }
 

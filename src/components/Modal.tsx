@@ -22,7 +22,7 @@ export function Modal({
   onClose: () => void;
   children?: ReactNode;
   footer?: ReactNode;
-  size?: "sm" | "md";
+  size?: "sm" | "md" | "lg";
 }) {
   useEffect(() => {
     if (!open) return;
@@ -57,7 +57,7 @@ export function Modal({
 
       <div
         className={`relative z-10 max-h-[90vh] w-full overflow-y-auto rounded-xl border border-slate-200 bg-white shadow-xl ${
-          size === "sm" ? "max-w-md" : "max-w-2xl"
+          size === "sm" ? "max-w-md" : size === "lg" ? "max-w-4xl" : "max-w-3xl"
         }`}
       >
         <div className="flex items-start justify-between gap-4 border-b border-slate-100 px-5 py-4">

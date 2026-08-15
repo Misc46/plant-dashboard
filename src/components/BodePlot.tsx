@@ -56,9 +56,10 @@ export default function BodePlot({ plant }: { plant: PlantData }) {
       return [min - pad, max + pad];
     };
     // uPlot formats the x scale as dates by default; explicit numeric labels
-    // keep frequencies from rendering as 1970 timestamps.
+    // keep frequencies from rendering as 1970 timestamps. Splits can contain
+    // nulls during the first layout pass, so skip those entries.
     const freqTicks: uPlot.Axis.Values = (_u, splits) =>
-      splits.map((v) => Number(v.toPrecision(3)).toString());
+      splits.map((v) => (v == null ? "" : Number(v.toPrecision(3)).toString()));
 
     const magAxes: uPlot.Axis[] = [
       { scale: "x", label: "Frequency [rad/s]", grid: { show: true }, values: freqTicks },
