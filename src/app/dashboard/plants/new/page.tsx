@@ -15,6 +15,7 @@ import {
   PageHeader,
   PageLoader,
   Select,
+  Toggle,
 } from "@/components/ui";
 
 export default function CreatePlantPage() {
@@ -24,13 +25,19 @@ export default function CreatePlantPage() {
   const [name, setName] = useState("");
   const [type, setType] = useState<PlantType>("DC_MOTOR");
   const [controllerType, setControllerType] = useState<ControllerType>("PID");
-  const [kp, setKp] = useState(1.2);
-  const [ki, setKi] = useState(0.4);
-  const [kd, setKd] = useState(0.1);
-  const [setpoint, setSetpoint] = useState(100);
+  // Numeric inputs keep raw string state so users can clear a field and retype
+  // (Number() on every keystroke would snap an emptied field back to 0).
+  // Parsing to numbers happens once, at submit time.
+  const [kp, setKp] = useState("1.2");
+  const [ki, setKi] = useState("0.4");
+  const [kd, setKd] = useState("0.1");
+  const [setpoint, setSetpoint] = useState("100");
   const [samplingPeriodMs] = useState(500);
-  const [outputMin, setOutputMin] = useState(0);
-  const [outputMax, setOutputMax] = useState(100);
+  const [outputMin, setOutputMin] = useState("0");
+  const [outputMax, setOutputMax] = useState("100");
+  const [transferGain, setTransferGain] = useState("1");
+  const [timeConstantTau, setTimeConstantTau] = useState("2");
+  const [antiWindup, setAntiWindup] = useState(false);
 
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -45,6 +52,14 @@ export default function CreatePlantPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!profile || profile.role !== "ADMIN") return;
+
+    if (
+      type === "CUSTOM" &&
+      (Number(transferGain) <= 0 || Number(timeConstantTau) <= 0)
+    ) {
+      setError("Transfer gain (K) and time constant (τ) must be greater than zero.");
+      return;
+    }
 
     setSubmitting(true);
     setError(null);
@@ -62,6 +77,13 @@ export default function CreatePlantPage() {
         samplingPeriodMs: Number(samplingPeriodMs),
         outputMin: Number(outputMin),
         outputMax: Number(outputMax),
+        antiWindup,
+        ...(type === "CUSTOM"
+          ? {
+              transferGain: Number(transferGain),
+              timeConstantTau: Number(timeConstantTau),
+            }
+          : {}),
         status: "STOPPED",
         stepStartAt: null,
         stepStartSetpoint: null,
@@ -121,6 +143,7 @@ export default function CreatePlantPage() {
                 <option value="DC_MOTOR">DC Motor Speed Control</option>
                 <option value="WATER_TANK">Water Tank Level Control</option>
                 <option value="TEMPERATURE">Temperature Control System</option>
+                <option value="CUSTOM">Custom Transfer Function</option>
               </Select>
             </Field>
 
@@ -136,6 +159,49 @@ export default function CreatePlantPage() {
             </Field>
           </div>
 
+          {type === "CUSTOM" && (
+            <div className="grid grid-cols-2 gap-4">
+              <Field
+                label="Transfer Gain (K)"
+                hint="G(s) = K / (τ·s + 1) — steady-state gain"
+              >
+                <Input
+                  type="number"
+                  step="any"
+                  required
+                  value={transferGain}
+                  onChange={(e) => setTransferGain(e.target.value)}
+                />
+              </Field>
+              <Field
+                label="Time Constant (τ, s)"
+                hint="Response speed of the first-order model"
+              >
+                <Input
+                  type="number"
+                  step="any"
+                  required
+                  value={timeConstantTau}
+                  onChange={(e) => setTimeConstantTau(e.target.value)}
+                />
+              </Field>
+            </div>
+          )}
+
+          {controllerType !== "P" && (
+            <div className="flex items-center justify-between rounded-lg border border-slate-200 bg-slate-50 p-3">
+              <div>
+                <p className="text-sm font-medium text-slate-700">
+                  Anti-Windup
+                </p>
+                <p className="text-xs text-slate-500">
+                  Stop integral accumulation while the output is saturated
+                </p>
+              </div>
+              <Toggle checked={antiWindup} onChange={setAntiWindup} />
+            </div>
+          )}
+
           <div className="grid grid-cols-3 gap-4">
             <Field label="Kp">
               <Input
@@ -143,7 +209,7 @@ export default function CreatePlantPage() {
                 step="any"
                 required
                 value={kp}
-                onChange={(e) => setKp(Number(e.target.value))}
+                onChange={(e) => setKp(e.target.value)}
               />
             </Field>
             <Field label="Ki">
@@ -152,7 +218,7 @@ export default function CreatePlantPage() {
                 step="any"
                 required
                 value={ki}
-                onChange={(e) => setKi(Number(e.target.value))}
+                onChange={(e) => setKi(e.target.value)}
               />
             </Field>
             <Field label="Kd">
@@ -161,7 +227,7 @@ export default function CreatePlantPage() {
                 step="any"
                 required
                 value={kd}
-                onChange={(e) => setKd(Number(e.target.value))}
+                onChange={(e) => setKd(e.target.value)}
               />
             </Field>
           </div>
@@ -173,7 +239,7 @@ export default function CreatePlantPage() {
                 step="any"
                 required
                 value={setpoint}
-                onChange={(e) => setSetpoint(Number(e.target.value))}
+                onChange={(e) => setSetpoint(e.target.value)}
               />
             </Field>
             <Field label="Output Min">
@@ -182,7 +248,7 @@ export default function CreatePlantPage() {
                 step="any"
                 required
                 value={outputMin}
-                onChange={(e) => setOutputMin(Number(e.target.value))}
+                onChange={(e) => setOutputMin(e.target.value)}
               />
             </Field>
             <Field label="Output Max">
@@ -191,7 +257,7 @@ export default function CreatePlantPage() {
                 step="any"
                 required
                 value={outputMax}
-                onChange={(e) => setOutputMax(Number(e.target.value))}
+                onChange={(e) => setOutputMax(e.target.value)}
               />
             </Field>
           </div>

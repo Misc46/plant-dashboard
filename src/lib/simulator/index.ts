@@ -1,4 +1,4 @@
-export type PlantType = "DC_MOTOR" | "WATER_TANK" | "TEMPERATURE";
+export type PlantType = "DC_MOTOR" | "WATER_TANK" | "TEMPERATURE" | "CUSTOM";
 export type ControllerType = "PID" | "PI" | "P";
 export type PlantStatus = "STOPPED" | "RUNNING" | "FAULT";
 
@@ -14,6 +14,13 @@ export interface PlantData {
   samplingPeriodMs: number;
   outputMin: number;
   outputMax: number;
+  // First-order transfer function dynamics, only used when type === "CUSTOM".
+  // Optional so legacy plants created before this feature stay valid.
+  transferGain?: number;
+  timeConstantTau?: number;
+  // Conditional-integration anti-windup for PI/PID controllers. Optional so
+  // legacy plants default to the original behavior (no anti-windup).
+  antiWindup?: boolean;
   status: PlantStatus;
   stepStartAt?: number | null;
   stepStartSetpoint?: number | null;
@@ -39,6 +46,28 @@ interface PlantSimState {
   pv: number;
   integral: number;
   prevError: number;
+}
+
+/**
+ * Returns the first-order dynamics (gain and time constant in seconds) for a
+ * plant. Single source of truth shared by the time-domain simulator and the
+ * frequency-domain Bode plot math, so both always use identical parameters.
+ */
+export function getPlantDynamics(plant: PlantData): { gain: number; tau: number } {
+  switch (plant.type) {
+    case "DC_MOTOR":
+      return { gain: 14, tau: 2.0 }; // u=100% -> PV steady state = 1400, headroom above the seed setpoint 1200
+    case "WATER_TANK":
+      return { gain: 0.8, tau: 4.0 }; // Medium slow response
+    case "TEMPERATURE":
+      return { gain: 2.0, tau: 10.0 }; // Slow response
+    case "CUSTOM":
+      // User-defined first-order dynamics: G(s) = transferGain / (timeConstantTau*s + 1)
+      return {
+        gain: plant.transferGain && plant.transferGain > 0 ? plant.transferGain : 1.0,
+        tau: plant.timeConstantTau && plant.timeConstantTau > 0 ? plant.timeConstantTau : 1.0,
+      };
+  }
 }
 
 export class PlantSimulator {
@@ -76,24 +105,8 @@ export class PlantSimulator {
       };
     } // Kalo plant tidak running, kembalikan nilai terakhir tanpa mengubah state
 
-    // Plant specific physical dynamics parameters
-    let gain = 1.0;
-    let tau = 1.0; // Time constant in seconds
-
-    switch (plant.type) {
-      case "DC_MOTOR":
-        gain = 14; // u=100% -> PV steady state = 1400, headroom above the seed setpoint 1200
-        tau = 2.0; // Fast response
-        break;
-      case "WATER_TANK":
-        gain = 0.8;
-        tau = 4.0; // Medium slow response
-        break;
-      case "TEMPERATURE":
-        gain = 2.0;
-        tau = 10.0; // Slow response
-        break;
-    }
+    // Plant specific physical dynamics parameters (shared with the Bode plot math)
+    const { gain, tau } = getPlantDynamics(plant);
 
     const setpoint = plant.setpoint;
     const error = setpoint - state.pv;
@@ -104,8 +117,14 @@ export class PlantSimulator {
     let dTerm = 0;
 
     if (plant.controllerType === "PI" || plant.controllerType === "PID") {
-      state.integral += error * dtSeconds;
-      iTerm = plant.ki * state.integral;
+      if (plant.antiWindup) {
+        // Anti-windup path: compute iTerm from the integral accumulated so far
+        // and defer this step's accumulation until the clamped output is known.
+        iTerm = plant.ki * state.integral;
+      } else {
+        state.integral += error * dtSeconds;
+        iTerm = plant.ki * state.integral;
+      }
     } // Kontrol Integral: Menjumlahkan error dari waktu ke waktu dikali ki (diset admin saat pembuatan plant)
     // Hanya untuk Kontroler jenis PI dan PID
 
@@ -119,6 +138,19 @@ export class PlantSimulator {
     const rawOutput = pTerm + iTerm + dTerm; // Output akhir dari kontroller (P + I + D)
     // Saturation / Output clamping
     const controlOutput = Math.max(plant.outputMin, Math.min(plant.outputMax, rawOutput)); // Membatasi output kontroller agar tidak melebihi nilai minimum dan maksimum yang telah ditentukan (clamping/saturation)
+
+    // Anti-windup (conditional integration): accumulate the integral only when
+    // the error pushes the output away from a saturated limit. While the output
+    // is pinned at a limit, the integral stops growing so it unwinds quickly
+    // once the error reverses.
+    const hasIntegralTerm = plant.controllerType === "PI" || plant.controllerType === "PID";
+    if (plant.antiWindup && hasIntegralTerm) {
+      const pushingAgainstHigh = error > 0 && rawOutput >= plant.outputMax;
+      const pushingAgainstLow = error < 0 && rawOutput <= plant.outputMin;
+      if (!pushingAgainstHigh && !pushingAgainstLow) {
+        state.integral += error * dtSeconds;
+      }
+    }
 
     // Plant process response calculation
     const dpv = (dtSeconds * (gain * controlOutput - state.pv)) / tau; // Menghitung perubahan nilai PV pada step selanjutnya
