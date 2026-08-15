@@ -1,18 +1,45 @@
 # Plant Control & Monitoring Dashboard
 
-Real-time software-simulated monitoring and control platform for control-engineering plants (DC Motor Speed Control, Water Tank Level Control, Temperature Control System). Built with Next.js 15 App Router, TypeScript, Tailwind CSS, Firebase Authentication, Cloud Firestore, and Firebase Realtime Database.
+Real-time software-simulated monitoring and control platform for control-engineering plants (DC Motor Speed Control, Water Tank Level Control, Temperature Control System). Built with Next.js 16 App Router, TypeScript, Tailwind CSS v4, Firebase Authentication, Cloud Firestore, and Firebase Realtime Database.
 
-## Features & Tech Stack Decisions
+## Features
 
-* **Framework**: Next.js 15 (App Router, TypeScript, `src/` directory structure)
-* **Styling**: Tailwind CSS
-* **Auth**: Firebase Auth (Email/Password provider) using Firebase Web SDK on the client side
+* **Dashboard Overview**: Live aggregate telemetry across all plants (active/running/fault counts, average error & output), auto-refreshed every 3 s.
+* **Plant Management**: Create plants from presets (DC Motor, Water Tank, Temperature) or fully custom first-order dynamics `G(s) = K / (τs + 1)`; live status cards with ESP badges and process-variable units; edit and delete.
+* **Live Telemetry**: High-frequency real-time chart (uPlot on canvas, 60 fps) fed from the Firebase Realtime Database telemetry stream.
+* **Simulation Control**: Start / Stop / Reset per plant, live setpoint control, and P / PI / PID controller selection with Kp, Ki, Kd gains.
+* **Anti-windup**: Conditional-integration anti-windup for PI/PID controllers, toggleable per plant.
+* **Bode Plot**: Frequency-response magnitude & phase plots computed from the same first-order dynamics used by the time-domain simulator.
+* **Tuning Advisor**: IMC / Lambda tuning modal suggesting Kp, Ki, Kd for Aggressive / Balanced / Conservative closed-loop speeds — read-only, never mutates the plant.
+* **Performance Metrics**: Step-response metrics (rise time, overshoot %, settling time ±5 % band) computed from telemetry recorded after a step change.
+* **CSV Export**: One-click export of a plant's telemetry history.
+* **ESP Hardware Mode**: Connect plants to real hardware through a Node-RED WebSocket broker (`connectionMode: "SIMULATED" | "ESP"`).
+* **Role-based Access**: Admin users get full control (start/stop/reset, tuning, plant creation); viewer users are read-only, with mutation controls hidden in the UI and blocked by Firestore/RTDB rules.
+
+## Tech Stack Decisions
+
+* **Framework**: Next.js 16 (App Router, TypeScript, `src/` directory structure, React 19)
+* **Styling**: Tailwind CSS v4
+* **Auth**: Firebase Auth (Email/Password provider) using the Firebase Web SDK on the client side
 * **Database (Structured Data)**: Cloud Firestore (`users` and `plants` collections)
 * **Database (Telemetry Stream)**: Firebase Realtime Database for high-frequency `telemetry/{plantId}/{autoId}` readings
-* **Server-side Firebase Access**: `firebase-admin` SDK used strictly inside Next.js API routes (`/api/tick`, `/api/auth/signup`, `/api/dashboard/summary`, `/api/plants/[id]/performance`)
-* **Real-time Charting (uPlot over Recharts Rationale)**: `uPlot` was explicitly chosen for rendering the high-frequency plant telemetry stream. Unlike Recharts which re-renders complete DOM SVG subtrees per tick and degrades under fast time-series streams, uPlot utilizes raw Canvas rendering with bounded data array references, maintaining smooth 60fps telemetry rendering.
-* **HTTP Client**: Axios (used explicitly for non-stream HTTP API route interactions like `/api/dashboard/summary` and `/api/tick`)
+* **Server-side Firebase Access**: `firebase-admin` SDK used strictly inside Next.js API routes (see below)
+* **Real-time Charting (uPlot over Recharts)**: uPlot was explicitly chosen for rendering the high-frequency plant telemetry stream. Unlike Recharts, which re-renders complete DOM SVG subtrees per tick and degrades under fast time-series streams, uPlot uses raw canvas rendering with bounded data array references, maintaining smooth 60 fps telemetry rendering.
+* **HTTP Client**: Axios for non-stream HTTP API route interactions
 * **Input Validation**: Zod schemas for server API route validation
+* **ESP Connectivity**: Native WebSocket client (`src/services/websocket.ts`) connecting to a Node-RED broker for ESP hardware plants
+
+## API Routes
+
+| Route | Purpose |
+| --- | --- |
+| `POST /api/auth/signup` | Create a user account |
+| `GET /api/dashboard/summary` | Aggregate telemetry summary for the overview page |
+| `POST /api/tick` | Advance the simulation for a running plant |
+| `GET/PATCH/DELETE /api/plants/[id]` | Plant read / update / delete |
+| `POST /api/plants/[id]/reset` | Reset plant state (PV, controller state, telemetry) |
+| `GET /api/plants/[id]/performance` | Step-response performance metrics |
+| `GET /api/plants/[id]/export` | CSV export of telemetry history |
 
 ## Control Theory Performance Metrics
 
@@ -58,6 +85,9 @@ NEXT_PUBLIC_FIREBASE_DATABASE_URL=https://your_project-default-rtdb.firebaseio.c
 FIREBASE_ADMIN_PROJECT_ID=your_project_id
 FIREBASE_ADMIN_CLIENT_EMAIL=firebase-adminsdk-xxx@your_project.iam.gserviceaccount.com
 FIREBASE_ADMIN_PRIVATE_KEY="-----BEGIN PRIVATE KEY-----\n..."
+
+# Node-RED WebSocket broker for ESP hardware plants (client-side)
+NEXT_PUBLIC_WS_BROKER_URL=ws://localhost:1880/ws/esp
 ```
 
 ---
@@ -74,7 +104,12 @@ FIREBASE_ADMIN_PRIVATE_KEY="-----BEGIN PRIVATE KEY-----\n..."
    npx tsx scripts/seed.ts
    ```
 
-3. **Start Development Server**:
+3. **Migrate plant units** (only needed for plants created before the units feature):
+   ```bash
+   npx tsx scripts/sync-units.ts
+   ```
+
+4. **Start Development Server**:
    ```bash
    npm run dev
    ```
@@ -86,13 +121,3 @@ FIREBASE_ADMIN_PRIVATE_KEY="-----BEGIN PRIVATE KEY-----\n..."
 
 * **Admin User**: `admin@plant.local` / `admin123` (Full control, Start/Stop/Reset simulation, PID tuning, plant creation)
 * **Viewer User**: `viewer@plant.local` / `viewer123` (Read-only monitoring; mutation controls strictly hidden in UI & blocked by Firestore/RTDB rules)
-
----
-
-## Team Contributions
-
-| Member | Role / Responsibilities |
-| --- | --- |
-| Placeholder | Architecture & Next.js Setup |
-| Placeholder | Firebase Integration & Security Rules |
-| Placeholder | PID Simulator & Performance Metrics |
