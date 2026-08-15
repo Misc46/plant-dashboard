@@ -1,5 +1,6 @@
 import "./load-env";
 import { adminAuth, adminDb } from "../src/lib/firebase/admin";
+import type { PlantData } from "../src/lib/simulator";
 
 
 async function seed() {
@@ -52,9 +53,11 @@ async function seed() {
     createdAt: Date.now(),
   });
 
-  // 3. Create 3 Sample Plants (one for each type)
+  // 3. Create sample plants covering every plant type, controller type, and
+  // connection mode, with built-in educational contrasts (PID vs P-only,
+  // anti-windup on vs off, simulated vs ESP hardware).
   const now = Date.now();
-  const samplePlants = [
+  const samplePlants: Omit<PlantData, "id">[] = [
     {
       name: "DC Motor Speed Loop",
       type: "DC_MOTOR",
@@ -66,8 +69,31 @@ async function seed() {
       samplingPeriodMs: 500,
       outputMin: 0,
       outputMax: 100,
+      antiWindup: true,
       unit: "RPM",
       status: "STOPPED",
+      connectionMode: "SIMULATED",
+      stepStartAt: null,
+      stepStartSetpoint: null,
+      createdBy: adminUid,
+      createdAt: now,
+      updatedAt: now,
+    },
+    {
+      name: "DC Motor Proportional-Only",
+      type: "DC_MOTOR",
+      controllerType: "P",
+      kp: 2.0,
+      ki: 0.0,
+      kd: 0.0,
+      setpoint: 1200,
+      samplingPeriodMs: 500,
+      outputMin: 0,
+      outputMax: 100,
+      antiWindup: false,
+      unit: "RPM",
+      status: "STOPPED",
+      connectionMode: "SIMULATED",
       stepStartAt: null,
       stepStartSetpoint: null,
       createdBy: adminUid,
@@ -85,8 +111,31 @@ async function seed() {
       samplingPeriodMs: 500,
       outputMin: 0,
       outputMax: 100,
+      antiWindup: true,
       unit: "cm",
       status: "STOPPED",
+      connectionMode: "SIMULATED",
+      stepStartAt: null,
+      stepStartSetpoint: null,
+      createdBy: adminUid,
+      createdAt: now,
+      updatedAt: now,
+    },
+    {
+      name: "Water Tank Level (ESP Hardware)",
+      type: "WATER_TANK",
+      controllerType: "PI",
+      kp: 1.2,
+      ki: 0.15,
+      kd: 0.0,
+      setpoint: 60,
+      samplingPeriodMs: 500,
+      outputMin: 0,
+      outputMax: 100,
+      antiWindup: true,
+      unit: "cm",
+      status: "STOPPED",
+      connectionMode: "ESP",
       stepStartAt: null,
       stepStartSetpoint: null,
       createdBy: adminUid,
@@ -104,8 +153,10 @@ async function seed() {
       samplingPeriodMs: 500,
       outputMin: 0,
       outputMax: 100,
+      antiWindup: false,
       unit: "°C",
       status: "STOPPED",
+      connectionMode: "SIMULATED",
       stepStartAt: null,
       stepStartSetpoint: null,
       createdBy: adminUid,
@@ -125,8 +176,10 @@ async function seed() {
       outputMax: 100,
       transferGain: 2.5,
       timeConstantTau: 5.0,
-      unit: "Unit",
+      antiWindup: true,
+      unit: "V",
       status: "STOPPED",
+      connectionMode: "SIMULATED",
       stepStartAt: null,
       stepStartSetpoint: null,
       createdBy: adminUid,
@@ -152,7 +205,9 @@ async function seed() {
   console.log("Seeding completed successfully!");
 }
 
-seed().catch((err) => {
-  console.error("Seeding failed:", err);
-  process.exit(1);
-});
+seed()
+  .then(() => process.exit(0))
+  .catch((err) => {
+    console.error("Seeding failed:", err);
+    process.exit(1);
+  });
