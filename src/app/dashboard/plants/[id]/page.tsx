@@ -7,6 +7,7 @@ import { db, rtdb } from "@/lib/firebase/client";
 import { PlantData, TelemetryReading } from "@/lib/simulator";
 import { useAuth } from "@/lib/auth/AuthProvider";
 import TelemetryChart from "@/components/TelemetryChart";
+import BodePlot from "@/components/BodePlot";
 import {
   Badge,
   Button,
@@ -14,8 +15,10 @@ import {
   Field,
   Input,
   PageLoader,
+  Segmented,
   StatCard,
   StatusBadge,
+  Toggle,
 } from "@/components/ui";
 import axios from "axios";
 import { PerformanceMetrics } from "@/lib/metrics/performance";
@@ -32,12 +35,18 @@ export default function PlantDetailPage({
   const [telemetry, setTelemetry] = useState<TelemetryReading[]>([]);
   const [metrics, setMetrics] = useState<PerformanceMetrics | null>(null);
   const [metricsLoading, setMetricsLoading] = useState(false);
+  const [activeTab, setActiveTab] = useState<"telemetry" | "bode">("telemetry");
 
-  // Config Form State
-  const [kp, setKp] = useState(0);
-  const [ki, setKi] = useState(0);
-  const [kd, setKd] = useState(0);
-  const [setpoint, setSetpoint] = useState(0);
+  // Config Form State — raw strings so users can clear a field and retype;
+  // parsed to numbers only when saving (Number() per keystroke would snap
+  // an emptied field back to 0).
+  const [kp, setKp] = useState("");
+  const [ki, setKi] = useState("");
+  const [kd, setKd] = useState("");
+  const [setpoint, setSetpoint] = useState("");
+  const [transferGain, setTransferGain] = useState("");
+  const [timeConstantTau, setTimeConstantTau] = useState("");
+  const [antiWindup, setAntiWindup] = useState(false);
   const [savingConfig, setSavingConfig] = useState(false);
 
   const isAdmin = profile?.role === "ADMIN";
@@ -48,10 +57,13 @@ export default function PlantDetailPage({
       if (snap.exists()) {
         const data = { id: snap.id, ...snap.data() } as PlantData;
         setPlant(data);
-        setKp(data.kp);
-        setKi(data.ki);
-        setKd(data.kd);
-        setSetpoint(data.setpoint);
+        setKp(String(data.kp));
+        setKi(String(data.ki));
+        setKd(String(data.kd));
+        setSetpoint(String(data.setpoint));
+        setTransferGain(data.transferGain != null ? String(data.transferGain) : "");
+        setTimeConstantTau(data.timeConstantTau != null ? String(data.timeConstantTau) : "");
+        setAntiWindup(data.antiWindup === true);
       }
     });
 
@@ -132,16 +144,31 @@ export default function PlantDetailPage({
     e.preventDefault();
     if (!isAdmin || !plant) return;
 
+    if (
+      plant.type === "CUSTOM" &&
+      (Number(transferGain) <= 0 || Number(timeConstantTau) <= 0)
+    ) {
+      alert("Transfer gain (K) and time constant (τ) must be greater than zero.");
+      return;
+    }
+
     setSavingConfig(true);
     try {
-      const setpointChanged = plant.setpoint !== setpoint;
+      const setpointChanged = plant.setpoint !== Number(setpoint);
       await updateDoc(doc(db, "plants", id), {
-        kp,
-        ki,
-        kd,
-        setpoint,
+        kp: Number(kp),
+        ki: Number(ki),
+        kd: Number(kd),
+        setpoint: Number(setpoint),
+        antiWindup,
+        ...(plant.type === "CUSTOM"
+          ? {
+              transferGain: Number(transferGain),
+              timeConstantTau: Number(timeConstantTau),
+            }
+          : {}),
         ...(setpointChanged
-          ? { stepStartAt: Date.now(), stepStartSetpoint: setpoint }
+          ? { stepStartAt: Date.now(), stepStartSetpoint: Number(setpoint) }
           : {}),
         updatedAt: serverTimestamp(),
       });
@@ -168,6 +195,9 @@ export default function PlantDetailPage({
           </div>
           <p className="text-xs text-slate-500 font-mono mt-1">
             ID: {plant.id} | Type: {plant.type} | Controller: {plant.controllerType}
+            {plant.type === "CUSTOM" && (
+              <> | G(s) = {plant.transferGain} / ({plant.timeConstantTau}s + 1)</>
+            )}
           </p>
         </div>
 
@@ -196,8 +226,25 @@ export default function PlantDetailPage({
         )}
       </Card>
 
-      {/* Real-time Telemetry Chart */}
-      <TelemetryChart data={telemetry} />
+      {/* Real-time Telemetry vs Bode Plot tabs */}
+      <div className="flex items-center justify-between gap-3">
+        <h2 className="text-sm font-semibold text-slate-900">
+          {activeTab === "telemetry" ? "Live Telemetry" : "Frequency Analysis"}
+        </h2>
+        <Segmented
+          value={activeTab}
+          onChange={setActiveTab}
+          options={[
+            { value: "telemetry", label: "Live Telemetry" },
+            { value: "bode", label: "Bode Plot" },
+          ]}
+        />
+      </div>
+      {activeTab === "telemetry" ? (
+        <TelemetryChart data={telemetry} />
+      ) : (
+        <BodePlot plant={plant} />
+      )}
 
       {/* Grid: Performance Panel + PID Config Form */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -272,7 +319,7 @@ export default function PlantDetailPage({
                   step="any"
                   disabled={!isAdmin}
                   value={setpoint}
-                  onChange={(e) => setSetpoint(Number(e.target.value))}
+                  onChange={(e) => setSetpoint(e.target.value)}
                 />
               </Field>
 
@@ -282,7 +329,7 @@ export default function PlantDetailPage({
                   step="any"
                   disabled={!isAdmin}
                   value={kp}
-                  onChange={(e) => setKp(Number(e.target.value))}
+                  onChange={(e) => setKp(e.target.value)}
                 />
               </Field>
 
@@ -292,7 +339,7 @@ export default function PlantDetailPage({
                   step="any"
                   disabled={!isAdmin}
                   value={ki}
-                  onChange={(e) => setKi(Number(e.target.value))}
+                  onChange={(e) => setKi(e.target.value)}
                 />
               </Field>
 
@@ -302,10 +349,51 @@ export default function PlantDetailPage({
                   step="any"
                   disabled={!isAdmin}
                   value={kd}
-                  onChange={(e) => setKd(Number(e.target.value))}
+                  onChange={(e) => setKd(e.target.value)}
                 />
               </Field>
             </div>
+
+            {plant.type === "CUSTOM" && (
+              <div className="grid grid-cols-2 gap-4">
+                <Field label="Transfer Gain (K)">
+                  <Input
+                    type="number"
+                    step="any"
+                    disabled={!isAdmin}
+                    value={transferGain}
+                    onChange={(e) => setTransferGain(e.target.value)}
+                  />
+                </Field>
+                <Field label="Time Constant τ (s)">
+                  <Input
+                    type="number"
+                    step="any"
+                    disabled={!isAdmin}
+                    value={timeConstantTau}
+                    onChange={(e) => setTimeConstantTau(e.target.value)}
+                  />
+                </Field>
+              </div>
+            )}
+
+            {plant.controllerType !== "P" && (
+              <div className="flex items-center justify-between rounded-lg bg-slate-50 p-3">
+                <div>
+                  <p className="text-sm font-medium text-slate-700">
+                    Anti-Windup
+                  </p>
+                  <p className="text-xs text-slate-500">
+                    Stop integral accumulation while the output is saturated
+                  </p>
+                </div>
+                <Toggle
+                  checked={antiWindup}
+                  onChange={setAntiWindup}
+                  disabled={!isAdmin}
+                />
+              </div>
+            )}
 
             {isAdmin && (
               <Button
