@@ -109,6 +109,26 @@ async function seed() {
       createdAt: now,
       updatedAt: now,
     },
+    {
+      name: "Custom First-Order Loop",
+      type: "CUSTOM",
+      controllerType: "PID",
+      kp: 1.2,
+      ki: 0.3,
+      kd: 0.05,
+      setpoint: 50,
+      samplingPeriodMs: 500,
+      outputMin: 0,
+      outputMax: 100,
+      transferGain: 2.5,
+      timeConstantTau: 5.0,
+      status: "STOPPED",
+      stepStartAt: null,
+      stepStartSetpoint: null,
+      createdBy: adminUid,
+      createdAt: now,
+      updatedAt: now,
+    },
   ];
 
   for (const plant of samplePlants) {
