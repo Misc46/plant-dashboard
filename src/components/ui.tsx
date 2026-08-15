@@ -208,6 +208,83 @@ export function Field({
   );
 }
 
+/* -------------------------------- Segmented -------------------------------- */
+
+export function Segmented<T extends string>({
+  value,
+  onChange,
+  options,
+  disabled,
+}: {
+  value: T;
+  onChange: (value: T) => void;
+  options: ReadonlyArray<{ value: T; label: string }>;
+  disabled?: boolean;
+}) {
+  return (
+    <div className="inline-flex rounded-lg border border-slate-200 bg-white p-0.5">
+      {options.map((option) => (
+        <button
+          key={option.value}
+          type="button"
+          disabled={disabled}
+          onClick={() => onChange(option.value)}
+          className={`rounded-md px-3 py-1.5 text-xs font-medium transition ${
+            value === option.value
+              ? "bg-blue-600 text-white"
+              : "text-slate-600 hover:bg-slate-100"
+          } disabled:cursor-not-allowed disabled:opacity-60`}
+        >
+          {option.label}
+        </button>
+      ))}
+    </div>
+  );
+}
+
+/* ---------------------------------- Toggle --------------------------------- */
+
+export function Toggle({
+  checked,
+  onChange,
+  disabled,
+  label,
+}: {
+  checked: boolean;
+  onChange: (checked: boolean) => void;
+  disabled?: boolean;
+  label?: string;
+}) {
+  return (
+    <label
+      className={`inline-flex items-center gap-2 ${
+        disabled ? "cursor-not-allowed opacity-60" : "cursor-pointer"
+      }`}
+    >
+      <input
+        type="checkbox"
+        className="sr-only"
+        checked={checked}
+        disabled={disabled}
+        onChange={(e) => onChange(e.target.checked)}
+      />
+      <span
+        aria-hidden="true"
+        className={`relative h-5 w-9 shrink-0 rounded-full transition ${
+          checked ? "bg-blue-600" : "bg-slate-300"
+        }`}
+      >
+        <span
+          className={`absolute top-0.5 size-4 rounded-full bg-white shadow transition-all ${
+            checked ? "left-[18px]" : "left-0.5"
+          }`}
+        />
+      </span>
+      {label && <span className="text-sm text-slate-700">{label}</span>}
+    </label>
+  );
+}
+
 /* ---------------------------------- Alert --------------------------------- */
 
 const alertTones = {
