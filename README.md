@@ -13,7 +13,7 @@ Real-time software-simulated monitoring and control platform for control-enginee
 * **Tuning Advisor**: IMC / Lambda tuning modal suggesting Kp, Ki, Kd for Aggressive / Balanced / Conservative closed-loop speeds — read-only, never mutates the plant.
 * **Performance Metrics**: Step-response metrics (rise time, overshoot %, settling time ±5 % band) computed from telemetry recorded after a step change.
 * **CSV Export**: One-click export of a plant's telemetry history.
-* **ESP Hardware Mode**: Connect plants to real hardware through a Node-RED WebSocket broker (`connectionMode: "SIMULATED" | "ESP"`).
+* **ESP Hardware Mode**: Connect plants to real hardware through a Node-RED WebSocket broker (`connectionMode: "SIMULATED" | "ESP"`). Reference Node-RED flow and ESP32/Arduino sketch in `ESPSimulation/`.
 * **Role-based Access**: Admin users get full control (start/stop/reset, tuning, plant creation); viewer users are read-only, with mutation controls hidden in the UI and blocked by Firestore/RTDB rules.
 
 ## Tech Stack Decisions
